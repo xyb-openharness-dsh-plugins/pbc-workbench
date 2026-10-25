@@ -10,10 +10,11 @@
  *   4. `ctx.effect` 的 dispose 里按顺序关库
  */
 import Schema from '@deepseek-ai/schemastery'
-import { readFileSync } from 'node:fs'
 import { Workbench } from './workbench.js'
 import { API_PREFIX, createApiHandler } from './routes.js'
 import { servePublic } from './server.js'
+import { createAuthorized } from './auth.js'
+import { build as buildDate, version as pkgVersion } from '../lib/version.js'
 
 export const name = 'pbc-workbench-main'
 export const inject = ['webServer', 'connection']
@@ -24,7 +25,10 @@ export const Config = Schema.object({
   root: Schema.string().description('用户资料目录（由宿主 dshHomePath 注入）'),
 })
 
-const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+/* 版本号只认 lib/version.js（由 build-version.mjs 从 VERSION 生成）：
+   以前这里读 package.json，结果 health 的 build 永远是 null（package.json 没有 build 字段），
+   而"版本对了、构建日期空白"这种半对状态最难查。 */
+
 
 /** 打开数据源。root 缺失不是错误——它是"还没选资料目录"的正常状态，退回只读演示。 */
 async function openDataSource(root) {
@@ -55,8 +59,11 @@ export function apply(ctx) {
       saveExport: (key) => requireSource().saveExport(key),
       isDemo: () => (source ? source.isDemo : null),
     },
-    version: manifest.version,
-    build: manifest.build ?? null,
+    version: pkgVersion,
+    /* build 取 lib/version.js（由 scripts/build-version.mjs 从 VERSION + git 生成），
+       不从 package.json 取 ——那里没有 build 字段，取出来永远是 null，
+       界面上"构建日期"就一栏空白，而空白看起来像"没构建成功"。 */
+    build: buildDate ?? null,
     serveUi: (req, res, urlPath) => void servePublic(req, res, urlPath),
     get failure() { return failure },
     /* 只回布尔，不回路径：路径会出现在 HTTP 响应里，谁抓到响应就知道你把资料放哪了。 */
@@ -75,18 +82,10 @@ export function apply(ctx) {
     return source
   }
 
-  function authorized(req, res) {
-    /* 鉴权交给宿主：没有 connection 能力就明确说不可用，不做"看起来放行了"的假动作。 */
-    if (typeof ctx.connection?.requestRejection === 'function') {
-      const rejection = ctx.connection.requestRejection(req)
-      if (rejection !== undefined) {
-        res.writeHead(rejection, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
-        res.end(JSON.stringify({ error: 'AUTH_REQUIRED', message: '需要登录 DSH 才能访问本机资料' }))
-        return
-      }
-    }
-    return api(req, res)
-  }
+  /* 鉴权逻辑抽到 dsh/auth.js：它只在宿主语境下走到，dev-server 根本不经过，
+     放在这里就没法单测（本文件顶部 import 了 Schemastery，单测环境没有那份 peer）。
+     两个真实缺陷的角色分工见那个文件的头注释。 */
+  const authorized = createAuthorized({ api, connection: ctx.connection })
 
   /* 前缀注册：/api/pbc-workbench 下所有路径（含 /ui 静态）都走同一入口。
      用 register 返回的 dispose 交给 ctx.effect，不要自己数着关。 */

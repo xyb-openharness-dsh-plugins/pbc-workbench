@@ -68,7 +68,11 @@ function readProfile(home, profile) {
     const json = JSON.parse(readFileSync(file, 'utf8'));
     return {
       file,
-      dep: json.dependencies?.[NAME] ?? null,
+      /* 依赖区块：本机既有约定是**工作台放在 devDependencies**（gtn / thalassemia 都在那儿），
+         只看 dependencies 会把已经装好的工作台判成"没装"。两块都认，但不把两者混为一谈：
+         记下来源区块，报告里显示，避免"到底该装哪儿"以后再猜一次。 */
+      dep: json.dependencies?.[NAME] ? { spec: json.dependencies[NAME], where: 'dependencies' } : null,
+      devDep: json.devDependencies?.[NAME] ? { spec: json.devDependencies[NAME], where: 'devDependencies' } : null,
       bundled: (json.dsh?.profile?.bundles ?? []).includes(NAME),
     };
   } catch (error) {
@@ -113,13 +117,15 @@ if (!live) {
     lines.push(`✗ 这个 profile 下没有 package.json：${join(live.home, 'profiles', live.profile, 'package.json')}`);
   } else if (entry.error) {
     lines.push(`✗ package.json 读不了：${entry.error}`);
-  } else if (!entry.dep) {
-    lines.push(`✗ dependencies 里没有 ${NAME}——Desktop 不会加载这个工作台。`);
+  } else if (!entry.dep && !entry.devDep) {
+    lines.push(`✗ dependencies / devDependencies 里都没有 ${NAME}——Desktop 不会加载这个工作台。`);
   } else if (!entry.bundled) {
-    lines.push(`✗ 依赖装了（${entry.dep}）但 dsh.profile.bundles 里没有 ${NAME}——不会加载。`);
+    const dep = entry.dep ?? entry.devDep;
+    lines.push(`✗ 依赖装了（${dep.where}: ${dep.spec}）但 dsh.profile.bundles 里没有 ${NAME}——不会加载。`);
   } else {
     ok = true;
-    lines.push(`✓ ${NAME} 已登记到 Desktop 实际加载的 profile（${entry.dep}）`);
+    const dep = entry.dep ?? entry.devDep;
+    lines.push(`✓ ${NAME} 已登记到 Desktop 实际加载的 profile（${dep.where}: ${dep.spec}）`);
     const rec = marketRecord(live.home);
     lines.push(
       rec
@@ -130,8 +136,9 @@ if (!live) {
 }
 
 for (const c of all) {
-  if (c === live || !c.entry?.dep) continue;
-  lines.push(`! 另在「${c.label}」也装了（${c.entry.dep}）——那是另一份 Harness，不能替 Desktop 验收。`);
+  const dep = c.entry?.dep ?? c.entry?.devDep;
+  if (c === live || !dep) continue;
+  lines.push(`! 另在「${c.label}」也装了（${dep.spec}）——那是另一份 Harness，不能替 Desktop 验收。`);
 }
 
 if (!ok) {
