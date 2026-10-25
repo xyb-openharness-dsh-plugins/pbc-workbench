@@ -1,8 +1,8 @@
 # 发布与回滚记录
 
-## 当前状态（2026-10-25 · 包版本 0.2.5）
+## 当前状态（2026-10-25 · 包版本 0.2.6）
 
-版本/tag/commit：`0.2.5` / tag `v0.2.5`（随本次提交打）/ 见 `git log -1`。
+版本/tag/commit：`0.2.6` / tag `v0.2.6` 已推（`7291702`）/ Release 已建。
 变更的功能 ID：M6 装机接线（无新业务功能；修的是"装进宿主才走到"的三个缺陷）。
 用户授权范围：用户在开工时授权"独立走完 M0–M9"，其中 M6 允许安装到本机 Desktop；
 **Git push / Release / 市场投稿未获单独授权**，故下表这三行保持"未执行"。
@@ -10,9 +10,9 @@
 家族一致性：`npm run audit` → **37/37 通过 · 0 失败 · 0 待人工**。
 （历史：M1 时点 24/30 · 6 失败，M5 收口时清零；本轮修 `check-install` 判据后仍 37/37。）
 源码检查：`npm run check` 退出 0 —— 版本一致性 7 处、语法 52 文件、schema 24 表 / 0 判读列、
-医疗表述 30 个实现文件 0 处越界、演示库与 schema 同构、**87 个测试全绿**、宿主注册契约符合。
-包检查/大小/hash：`release/ductpal-dsh-pbc-workbench-0.2.5.tgz`，
-`87813f67347b18fa1040c3be7d2d0bb2b959451ed3868327f2d709d8c62826cb`，50 files / 3.4 MiB。
+医疗表述 30 个实现文件 0 处越界、演示库与 schema 同构、**113 个测试全绿**、宿主注册契约符合。
+包检查/大小/hash：`release/ductpal-dsh-pbc-workbench-0.2.6.tgz`，
+`c00d65e971e2fb92c503ae34137b1e0c662ffdf2c6180074eb85954f007cd3db`，50 files / 3.4 MiB。
 包内四要素已逐项核对（`dsh` 块 / `cordis.patch.yml` 的 `config.root` / `lib/client.js` 540 行无"接入骨架" / 版本同源）。
 实机证据：装机副本探针（假宿主 + 真库）通过 —— `health.version=0.2.5`、
 `POST /symptoms` 201 且 `persisted:true`、症状条数 7→8、`itch=99` 回 400 带 `field`、
