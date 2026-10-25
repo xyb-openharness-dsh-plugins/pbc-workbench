@@ -66,3 +66,36 @@
 - 新增 `scripts/probe-dev.py`（真起 dev-server + 真 Chrome，A1–A9）：实测 `ok:true`
   —— 接口态无横幅、30 个二级无空视图、折叠卡 3 张展开 15 块、草稿含上下文未发送、三档宽度溢出 0、非 200 响应 0。
 - 全链绿：`npm run check`（含 67 test）退出 0；`npm run audit` **37/37 通过 · 0 失败**。
+
+## 包版本 0.2.3 — M6 装机接线（2026-10-25）
+
+版本轨迹 0.1.0 → 0.2.0 → 0.2.1 → 0.2.2 → **0.2.3**：每一轮改包都升版（同版号重打包 pnpm 不替换内容，
+装进去的还是旧文件）。
+
+- **装机目标已核实**：本机 Desktop app 实际加载 `~/.dsh/profiles/desktop`（进程行末即是该路径，
+  Web GUI 端口 56166）；本机**不存在** `~/Library/Application Support/dsh-desktop/harness`，
+  所以 06 号文档里那条 2026-10-18 的结论在本机不适用。装机方式照抄该 profile 既有约定：
+  `devDependencies` 的 `file:` tgz + `dsh.profile.bundles` 双登记。
+- **`scripts/check-install.mjs` 修**：原判据只看 `dependencies`，把装在 `devDependencies` 的工作台
+  判成"没装" → 改为两个区块都认，并报出来源区块。
+- **装机副本探针（假宿主）实测出三个只有宿主语境才暴露的真 bug**，全部已修：
+  1. 宿主没给 `connection.requestRejection` 时**跳过鉴权继续放行** —— 宿主少给一个能力，本机资料就裸奔。
+     改为 503 `AUTH_UNAVAILABLE` 明说不可用。
+  2. 宿主"不拒绝"时返回 `null`，原实现用 `!== undefined` 判 → `writeHead(null)` 抛
+     `ERR_HTTP_INVALID_STATUS_CODE: Invalid status code: null`，**整条服务链熄火**（不是 500）。
+     判定改为真值判（`if (rejection)`）。
+  3. `health.build` 从 `package.json` 取（该文件没有 build 字段）→ 永远 `null`、界面构建日期空白。
+     改为从 `lib/version.js` 取。
+- 鉴权逻辑抽到 **`dsh/auth.js`** 的 `createAuthorized({ api, connection })`：`dsh/index.js` 顶部
+  import 了 Schemastery，单测环境没有那份 peer，逻辑留在里面就没法测。新增 `test/host-auth.test.mjs`
+  7 条（无能力→503 且业务 handler 不被调用 / `null` 放行 / `undefined` 放行 / 401 透传且不带业务数据 /
+  拒绝响应不含业务字段 / `api` 非函数立刻抛 / 接真路由 profiles 是数组且库真落盘）。
+- **tgz 四要素在包内逐项核对**：`dsh.bundle.patch` + `dsh.client.inject` 齐；
+  `cordis.patch.yml` 含 `config.root: !!js dshHomePath('pbc')` 且注释在条目之后；
+  `lib/client.js` 540 行、`grep -c "接入骨架"` = 0、含 `__ModuleLoader__`；`lib/version.js` 与 tgz 名同版。
+- 安装副本与 tgz `diff -rq` **逐文件一致**；装机副本探针 `health` 回
+  `{"version":"0.2.3","build":"2026-10-25","demo":false,"dataDirConfigured":true}`，
+  `<root>/` 下真的生成 `xyb-pbc.sqlite`（+`-shm`/`-wal`），证明不是内存库。
+- 全链绿：`npm run check` **74 test 全绿**、`staticPass:true`；`npm run audit` **37/37 通过 · 0 失败**。
+- **尚未完成（如实记）**：Harness 重启后的真机走查（ACC-04 以后）未做 —— 需要用户重启 Desktop，
+  Agent 不自行重启宿主。重启前的状态是"包已安装、副本已核、探针已过"，不是"装机通过"。

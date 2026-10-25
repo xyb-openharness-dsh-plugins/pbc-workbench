@@ -1,25 +1,50 @@
 # 发布与回滚记录
 
-版本/tag/commit：... 变更的功能 ID：... 用户授权范围：...
-家族一致性：`npm run audit` 结果（xx/xx 通过 · N fail · M warn）；存在 fail 不得发布，warn 逐条给结论：...
-源码检查：... 包检查/大小/hash：... 实机证据：...
-README/许可证/素材来源/运行依赖/更新说明：...
-演示数据清单已清理或明确示例环境：...
-数据库迁移与旧包兼容：... 可用备份：...
-市场分发来源：npm / Release tarball / 默认分支源码 / 不投稿（选一并说明依据）：...
+## 当前状态（2026-10-25 · 包版本 0.2.3）
 
-若任务要求本机更新：最终已安装版本/Profile/打开确认本次修改：...。若仅推送Git：明确此范围，不声称本机已更新。仅安装后仍旧版或异常时附源码→构建物→包→Profile→运行界面的诊断证据，不每次重复整链排查。
+版本/tag/commit：`0.2.3` / 未打 tag / `1f64453`（工作区另有未提交的 CHANGELOG 与本文修改）。
+变更的功能 ID：M6 装机接线（无新业务功能；修的是"装进宿主才走到"的三个缺陷）。
+用户授权范围：用户在开工时授权"独立走完 M0–M9"，其中 M6 允许安装到本机 Desktop；
+**Git push / Release / 市场投稿未获单独授权**，故下表这三行保持"未执行"。
+
+家族一致性：`npm run audit` → **37/37 通过 · 0 失败 · 0 待人工**。
+（历史：M1 时点 24/30 · 6 失败，M5 收口时清零；本轮修 `check-install` 判据后仍 37/37。）
+源码检查：`npm run check` 退出 0 —— 版本一致性 7 处、语法 50 文件、schema 24 表 / 0 判读列、
+医疗表述 29 个实现文件 0 处越界、演示库与 schema 同构、**74 个测试全绿**、宿主注册契约符合。
+包检查/大小/hash：`release/ductpal-dsh-pbc-workbench-0.2.3.tgz`，
+`1e8e6dbbbe4bd6dfbcabc64c7ff43ae7dd31a38a680889d6beb21ef1e0af7060`，49 files / 3.4 MiB。
+包内四要素已逐项核对（`dsh` 块 / `cordis.patch.yml` 的 `config.root` / `lib/client.js` 540 行无"接入骨架" / 版本同源）。
+实机证据：装机副本探针（假宿主 + 真库）通过，`<root>/xyb-pbc.sqlite` 真落盘；
+**重启后的真机走查未做**，见下表"Desktop 界面层"。
+
+README/许可证/素材来源/运行依赖/更新说明：README 五段式已更新至 0.2.3；`NOTICE.md` 记 CTCAE v5.0
+公开参考件来源；运行依赖仅 `node:sqlite`/`node:zlib`（Node ≥22），无第三方运行时。
+演示数据清单已清理或明确示例环境：演示数据只进 `demo/` 与 `prototypes/`，界面在演示态有横幅明示；
+包内不含任何 `.sqlite`（`files` 白名单无 `demo/demo-data.sqlite`）。
+数据库迁移与旧包兼容：0001 冻结（sha256 `78c720f1…`），0002–0004 只增列/只加表，**未改 0001**；
+旧包回退到 0.2.2 可读 0.2.3 建的库（只多了 `parse_jobs` 与 `lab_items.lab_name` 两处）。
+可用备份：装机前 `~/.dsh/profiles/desktop/{package.json,pnpm-lock.yaml}` 已备份到 `/tmp/desktop-*.bak`。
+市场分发来源：**不投稿**（仓库 private，按 BACKLOG §四 病种仓一律 private；市场要求公开仓 + 有效许可证）。
+
+若任务要求本机更新：最终已安装版本 **0.2.3** / Profile **`~/.dsh/profiles/desktop`** /
+安装副本与 tgz `diff -rq` 逐文件一致 / **打开确认本次修改：未做（等用户重启 Harness）**。
 
 | 动作 | 目标 | 真实结果/URL/证据 | 状态 |
 | --- | --- | --- | --- |
-| 本地安装 | Desktop/profile | | 未执行 |
-| Git push | 远端/分支/commit | | 未执行 |
-| Release/npm | tag/产物/hash | | 未执行 |
-| 市场 PR | 官方目录仓库 | | 未执行 |
-| 上架 | 公开 catalog | | 未执行 |
+| 本地安装 | Desktop/profile | `~/.dsh/profiles/desktop`，devDependencies + bundles 双登记，`check-install` ✓ | **已执行** |
+| Harness 重启 | Desktop app | Agent 不自行重启宿主；重启后可复跑装机副本探针 | 未执行（等用户） |
+| 真机走查（ACC-04 以后） | Desktop 界面层 | 需重启后新建会话再打开工作台 | 未执行 |
+| Git push | 远端/分支/commit | 尚未 push（本轮改动仍在本地） | 未执行 |
+| Release/npm | tag/产物/hash | tag 与 Release 待 M7 | 未执行 |
+| 市场 PR | 官方目录仓库 | 私有仓不可投稿（BACKLOG §四） | 不适用 |
+| 上架 | 公开 catalog | 同上 | 不适用 |
 
-市场状态说明：GitHub Release 不会自动成为市场安装来源。核对已有目录条目/开放PR；若未声明 tarball，市场按目录协议使用默认分支源码（或适用的npm来源）。普通代码版本升级不重复创建目录PR；切换安装来源或修改目录元数据时，在原条目PR中更新。市场PR提交、合并、目录可见、Desktop可安装分别记录，不混称“已上架”。
+市场状态说明：**本仓 private，按组织规则不投稿市场**（`docs/10-MARKET-PUBLISHING.md` 要求公开 GitHub 仓库 +
+有效许可证）。"本地安装成功"不推断"市场可见"，"Git push"也不等于"发布"。
 
-回滚步骤/数据兼容检查/已知限制：...
-
-工作台市场发布另按 docs/10-MARKET-PUBLISHING.md 执行，附 templates/MARKET-ACCEPTANCE.md 的指定版本手工确认。官方指南复核日期/来源：... 最终安装来源：... 用户确认的项目与执行者：... PR URL/最新提交检查实际执行结果：... 市场目录可见与可安装证据：...。未授权投稿时标不适用，不把 Git push 当市场发布。
+回滚步骤/数据兼容检查/已知限制：
+1. 回滚 = 把 `devDependencies` 的 `file:` 指回 `0.2.2` 的 tgz 并 `rm -rf node_modules/@ductpal-dsh` 后重装；
+   库结构向后兼容（0002–0004 只增），旧包能读新库。
+2. 数据在 `~/.dsh/pbc/xyb-pbc.sqlite`，回滚不动数据；如需彻底重来，删该目录即可（会退回内存演示库）。
+3. 已知限制：重启后的界面层未验；MinerU 需用户自备 Token（未配置时解析按钮会如实说"未配置"）；
+   试验库 6 个来源里只有 2 个真的查过（其 4 个落 `unconfigured`），界面按"未查过"文案显示。
