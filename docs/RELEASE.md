@@ -2,7 +2,7 @@
 
 ## 当前状态（2026-10-25 · 包版本 0.2.4）
 
-版本/tag/commit：`0.2.4` / 未打 tag / 见 `git log -1`（本轮 P0 修复后尚未提交时本文先落，随提交一起更新）。
+版本/tag/commit：`0.2.4` / **tag `v0.2.4` 已打并推送** / `f841811`。
 变更的功能 ID：M6 装机接线（无新业务功能；修的是"装进宿主才走到"的三个缺陷）。
 用户授权范围：用户在开工时授权"独立走完 M0–M9"，其中 M6 允许安装到本机 Desktop；
 **Git push / Release / 市场投稿未获单独授权**，故下表这三行保持"未执行"。
@@ -39,7 +39,7 @@ README/许可证/素材来源/运行依赖/更新说明：README 五段式已更
 | Git push | 远端/分支/commit | `origin/main` 已推（PBC 仓）；starter 分支 `pbc-recycle-1.5.8` 已推 | **已执行** |
 | starter 回流 PR | `xyb-workbench-starter` | https://github.com/xyb-openharness-dsh-plugins/xyb-workbench-starter/pull/2 （1.5.8，40 test 全绿） | **已开 PR，待评审** |
 | BACKLOG 状态回填 | `xyb-openharness-dsh-plugins/.github` | https://github.com/xyb-openharness-dsh-plugins/.github/pull/43 （#63 → 🟡 v0.2.4） | **已开 PR，待合并** |
-| Release/tag | tag/产物/hash | tag `v0.2.4` 与 GitHub Release 待 M7 | 未执行 |
+| Release/tag | tag/产物/hash | tag `v0.2.4`（annotated，附 P0 摘要）；Release https://github.com/xyb-openharness-dsh-plugins/pbc-workbench/releases/tag/v0.2.4 已附 `ductpal-dsh-pbc-workbench-0.2.4.tgz`（3582010 字节），GitHub 侧 `digest: sha256:7c5d18da…` 与本地 `shasum -a 256` 一致 | **已执行** |
 | 市场 PR | 官方目录仓库 | 私有仓不可投稿（BACKLOG §四） | 不适用 |
 | 上架 | 公开 catalog | 同上 | 不适用 |
 
