@@ -1,44 +1,63 @@
-# 小管宝 DuctPal
+# 小管宝 DuctPal · 原发性胆汁性胆管炎（PBC）患者工作台
 
-原发性胆汁性胆管炎（PBC）患者工作台：把生化序列、治疗与应答记录、乏力瘙痒与并发症筛查整理成可核对、可带去门诊的资料（本机优先）
+> 把散落的生化化验、用药与漏服、痒与累、并发症筛查整理成**可核对、可回溯、带得去门诊**的资料。
+> 本机优先（数据只落用户资料目录），不做诊断、不做治疗建议、不做分期分级判定。
 
-这是接入骨架，尚未实现真实业务。初始化后先将 [项目设计提示词](docs/DESIGN-PROMPT.md) 交给当前Agent；它应展示实际路径并以已有用户/场景/流程素材对齐设计者、研究与取舍原则。癌种项目另有 [完整专用提示词](prompts/NEW-CANCER-WORKBENCH.md)。需求见 [BRIEF](docs/BRIEF.md)，规格见 [SPEC](docs/SPEC.md)，任务见 [TASKS](docs/TASKS.md)；先读 [AGENTS](AGENTS.md)。CLI输出交接与首问，实际对话由Agent接续。
+## 这是什么（以及不是什么）
 
-## 开发顺序
+- **是**：一个长期病程的记录与回顾工具。核心闭环 = *一次化验 → 看到与这张单子参考上限的对照 → 同日记一次痒/累 → 复诊前导出快照*。
+- **不是**：不是病历系统、不是用药建议器、不是"应答判定器"。分级只做 **CTCAE v5.0 对照**，
+  不计算 GLOBE / UK-PBC / 巴黎 / 巴塞罗那等应答评分（属医生口径）。
 
-先共创SPEC和候选数据关系，再交付HTML交互工作台；由用户确认对应版本/模块后，复核SCHEMA/API并实现生产功能。确认记录见docs/PROTOTYPE-REVIEW.md；模型不依赖前端Tab/流程。模板骨架不是业务已确认。
+## 当前状态（如实标注）
 
-## 当前能力
+| 项 | 状态 | 说明 |
+| --- | --- | --- |
+| M0 骨架 + 接线 | ✅ | `npm run check` → `staticPass: true, errors: []`；`config.root` 注入与声明双向齐 |
+| M1 调研 / 规格 / 交互路径 | ✅ 文档完成，**待 G1 签认** | 9 一级 / 30 二级；一级重名率 **11.1%**（1/9） |
+| 用户研究 | ⛔ **0 访谈** | 场景中"患者原话"全部是**改写句（假设）**，不是一手引语 |
+| 指南出处层（G1–G3 指南部分） | ⛔ 未做 | 中文指南原件未取得 → 界面**不出现**任何指南页码 |
+| HTML 原型 | ⏳ | M2 |
+| 数据模型冻结 | ⏳ | M3 |
+| 临床试验库 | ⏳ **未查过** | M4；离线语料对 PBC **未配置**（仅胰腺癌） |
+| 开发版 / 装机 / 发布 | ⏳ | M5 / M6 / M7 |
 
-- 一个 DSH 工作台注册、认证的健康接口、版本展示与标准/大字切换。
-- 已明确选择布局：business-first。business-first 使用 customFrame；模板不创建会话或复制聊天。需要 AI 协助时按官方合同接入原生 conversation 和会话管理。
-- 无业务数据库、无演示患者、无真实密钥；所有业务页按确认 spec 逐项实现。
+> **没有实测就不写"通过"。** 上表的状态就是本轮的真实进度；截图与真机证据在 M2/M6 补入
+> （README 截图规则见 starter `docs/33-README-SCREENSHOTS.md`，至少 4 张 + 折叠收/展态）。
 
-## 开发与本地验收
+## 三条产品底线
 
-需要 Node.js 22+、Git、包管理器和可用 DSH Desktop；采用 SQLite 时另核验 node:sqlite 版本条件。宿主 peers 的范围仅是模板基线，请与目标 Desktop 实际依赖核对。
+1. **原型是唯一视觉基准**，开发版与它逐字符对齐（`public/` 差异只允许字号三处 / `[hidden]` / dev-only）。
+2. **数据只有一个来源**：`demo/build-demo-data.mjs` 同时产出 `demo/demo-data.sqlite` 与 `prototypes/v0.2/demo-data.js`。
+3. **判定权归医生**：所有判定类字段不落库（无 `diagnosis` / `risk_level` / `response` / `stage` 列），
+   界面只并列"指南/标准怎么写的"与"你的记录是什么"。
+
+## 文档入口
+
+| 文档 | 作用 |
+| --- | --- |
+| [SPEC](docs/SPEC.md) | 范围与不做、ADR |
+| [DEV-REQUIREMENTS](docs/DEV-REQUIREMENTS-2026-10-25.md) | 强约束（每条带错误来源）+ 我替你定的默认值 |
+| [DIFF-MATRIX](docs/DIFF-MATRIX.md) | 与乳腺基准/宫颈样板的差异 + 重名率实测 |
+| [SCENARIOS](docs/SCENARIOS.md) | S01–S16（患者原话=改写假设 / 页面接住 / 明确不做什么） |
+| [PATIENT-FLOW](docs/PATIENT-FLOW.md) | 三条真实时刻 → 页面树反推 |
+| [INTERACTION-DESIGN](docs/INTERACTION-DESIGN.md) | 16 条场景路径 + CRUD 双通道 + IP1–IP10 |
+| [METRIC-GRADING](docs/METRIC-GRADING.md) | 启用哪些 CTCAE 项、为什么不做瘙痒分级 |
+| [GUIDELINE-BRIDGE](docs/GUIDELINE-BRIDGE.md) | 四问筛结论：**指南层本轮未做**及补做条件 |
+| [CLINICAL-DATA-2026](docs/CLINICAL-DATA-2026.md) | 试验库口径与缺口（未查过就写未查过） |
+| [DEV-PLAN](docs/DEV-PLAN.md) | 里程碑唯一进度表（✅/🔧/⏳） |
+
+## 开发与验收
 
 ```bash
-npm install
-npm run check
-npm run pack:check
-npm pack
+npm run check        # 语法 + 装包合同 + 宿主注册契约
+npm run test         # 单测（M3+ 起补齐）
+npm run audit        # 家族一致性（fail 不交付）
+npm run release:check
 ```
 
-`npm run check` 只保证"能装"（语法 + 装包合同），第一天就该是绿的。`npm run audit` 管"还是不是家族里的一员"：版本三处一致、`lib/layout.js` 面板参数单一来源、检查链完整、文档与密钥卫生，**只看代码与文件，不看文档自述**。新项目刚生成时 audit 必然有 fail，那是待办清单；交付/发布前必须清零，存在 fail 不得发布（`npm run release:check` 一次跑完两者）。
+需要 Node.js 22+。宿主 peers 范围只是模板基线，以目标 Desktop 实际依赖为准。静态检查绿 **不代表**已装进 Desktop。
 
-跑的时间点：**每次改完**跑 `check`；**G2 原型确认后、写业务代码前**先跑一次 `audit`（这时缺的多是 `lib/layout.js`、`VERSION` 这类结构，越早补越便宜）；**交付/装机前**必须跑 `release:check`；**发布或投稿前**把 `npm run audit --json` 的 `xx/xx 通过 · N 失败 · M 待人工` 抄进 `docs/RELEASE.md` 的「家族一致性」一行。`✗` 是结构缺口（补齐，或在 `docs/DEV-REQUIREMENTS-<日期>.md` 写明偏离理由并由用户确认），`!` 是需人工判断的项（逐条给「已人工确认 / 确实没有」）。
+## 医学免责
 
-`npm install` 可能按 npm 策略解析 peer；勿为消警告重复打包宿主 runtime。客户端本身是单文件；引入 TS/组件库后需添加构建步骤并保留单文件导出。
-
-本地安装入口以当前 Desktop/CLI 帮助为准。安装后按 [docs/06-VALIDATION-AND-RELEASE.md](docs/06-VALIDATION-AND-RELEASE.md) 与官方自测完成真实 UI 验收，并填写 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。静态检查不代表已加载。
-
-Logo 来源与使用限制见 assets/README.md。许可证、作者、仓库/发布策略由本项目维护者确认后填写；模板默认为 private/UNLICENSED。
-
-感谢小x宝社区、DataElement 社区，以及 sam / hhx / 繁华的 ❤️ 贡献。
-
-初始化来源记录见 `.dsh-wb-starter.json`。更新社区脚手架不会覆盖本项目；需要升级时先用相同确认配置在临时目录生成，再审阅差异。CLI 用法见 [docs/CLI-GIT.md](docs/CLI-GIT.md)。
-
-## HTML先行与数据演进
-
-业务开发前先交付HTML交互工作台原型、实际预览并由用户确认版本/hash和范围。数据设计先区分领域事实、流程状态和页面读模型，走查前端/流程变化、兼容与迁移；原型对象不直接作为表。见[规范](docs/14-HTML-AND-DATA-CONTRACT.md)。
+本工具只做**信息整理与就诊准备**，不构成医疗建议，不替代医生判断。所有数值与结论以原始报告与主诊医生意见为准。

@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "note": "指南原件登记表。本轮中文指南原件未取得（见 docs/GUIDELINE-BRIDGE.md），documents 为空数组，界面不得出现任何指南页码或条款号。取得原件后按 ZERO-TO-DEV §1.5 补 G1–G3。",
+  "updatedAt": "2026-10-25",
+  "documents": []
+}
