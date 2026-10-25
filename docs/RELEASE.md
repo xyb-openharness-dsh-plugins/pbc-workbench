@@ -36,8 +36,10 @@ README/许可证/素材来源/运行依赖/更新说明：README 五段式已更
 | 本地安装 | Desktop/profile | `~/.dsh/profiles/desktop`，devDependencies + bundles 双登记，`check-install` ✓ | **已执行** |
 | Harness 重启 | Desktop app | Agent 不自行重启宿主；重启后可复跑装机副本探针 | 未执行（等用户） |
 | 真机走查（ACC-04 以后） | Desktop 界面层 | 需重启后新建会话再打开工作台 | 未执行 |
-| Git push | 远端/分支/commit | 尚未 push（本轮改动仍在本地） | 未执行 |
-| Release/npm | tag/产物/hash | tag 与 Release 待 M7 | 未执行 |
+| Git push | 远端/分支/commit | `origin/main` 已推（PBC 仓）；starter 分支 `pbc-recycle-1.5.8` 已推 | **已执行** |
+| starter 回流 PR | `xyb-workbench-starter` | https://github.com/xyb-openharness-dsh-plugins/xyb-workbench-starter/pull/2 （1.5.8，40 test 全绿） | **已开 PR，待评审** |
+| BACKLOG 状态回填 | `xyb-openharness-dsh-plugins/.github` | https://github.com/xyb-openharness-dsh-plugins/.github/pull/43 （#63 → 🟡 v0.2.4） | **已开 PR，待合并** |
+| Release/tag | tag/产物/hash | tag `v0.2.4` 与 GitHub Release 待 M7 | 未执行 |
 | 市场 PR | 官方目录仓库 | 私有仓不可投稿（BACKLOG §四） | 不适用 |
 | 上架 | 公开 catalog | 同上 | 不适用 |
 
