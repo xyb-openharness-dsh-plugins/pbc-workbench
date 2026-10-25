@@ -117,7 +117,7 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
         demo: typeof source.isDemo === 'function' ? source.isDemo() : null,
         /* 前端据此区分"演示库"和"记进你自己的库"。只给结论，不给路径。 */
         dataDirConfigured: dataDirConfigured === null ? null : Boolean(dataDirConfigured),
-        capabilities: ['bootstrap', 'profile', 'export', 'symptoms', 'mineru-settings'],
+        capabilities: ['bootstrap', 'profile', 'export', 'symptoms', 'screening', 'mineru-settings'],
         error: failure || undefined,
       })
     }
@@ -224,6 +224,26 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
       } catch (error) {
         const { status, body: err } = errorBody(error)
         return sendJson(res, status, err)
+      }
+    }
+
+    /* 记一条筛查结果（骨密度/甲状腺/胃镜/维生素/肝影像）。
+       result 存**报告原文**，不解析、不推断该不该查——这是本仓的医学边界。 */
+    if (path === `${API_PREFIX}/screening`) {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method_not_allowed' })
+      if (typeof source.addScreening !== 'function') return sendJson(res, 501, { error: 'screening_write_unavailable' })
+      let body = {}
+      try {
+        const raw = await readBody(req, 64 * 1024)
+        body = raw.length ? JSON.parse(raw.toString('utf8')) : {}
+      } catch {
+        return sendJson(res, 400, { error: 'bad_json', message: '请求体不是合法 JSON' })
+      }
+      try {
+        return sendJson(res, 201, { ok: true, saved: source.addScreening(body) })
+      } catch (error) {
+        const { status, body: err } = errorBody(error)
+        return sendJson(res, status, error.field ? { ...err, field: error.field } : err)
       }
     }
 

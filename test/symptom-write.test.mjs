@@ -165,3 +165,48 @@ test('⑦ 演示模式（内存库）也能写，但必须如实回报 persisted
     wb.close()
   }
 })
+
+test('⑧ 记一条筛查结果：真进库、分节标题落库、报告原文照抄不改', async () => {
+  await withServer(async ({ wb, base }) => {
+    const before = wb.getProfile('A', { includePrivate: true }).screening.length
+    const res = await postJson(`${base}/screening`, {
+      profileKey: 'A', sectionKey: 'bone', date: '2026-10-20',
+      result: '腰椎 T 值 -2.1（报告原文）', detail: '报告没写分级', dept: '内分泌科',
+    })
+    assert.equal(res.status, 201)
+    const body = await res.json()
+    assert.equal(body.saved.persisted, true)
+
+    const after = wb.getProfile('A', { includePrivate: true }).screening
+    assert.equal(after.length, before + 1)
+    const newest = after.find((s) => s.date === '2026-10-20')
+    assert.ok(newest, '刚记的那条没读回来')
+    /* 原文必须逐字保留：这一条的全部价值就是"报告上到底写了什么" */
+    assert.equal(newest.result, '腰椎 T 值 -2.1（报告原文）')
+    /* 分节标题必须从 screening_sections 取到（否则界面上这一节没名字） */
+    assert.equal(newest.sectionTitle, '骨密度')
+  })
+})
+
+test('⑨ 筛查坏输入必须 400 且不落地：未知分节、空原文、不存在的档案', async () => {
+  await withServer(async ({ wb, base }) => {
+    const before = wb.getProfile('A', { includePrivate: true }).screening.length
+    const cases = [
+      [{ sectionKey: 'nope', result: 'x' }, 'sectionKey'],
+      [{ sectionKey: 'bone', result: '   ' }, 'result'],
+      [{ sectionKey: 'bone', result: 'x', date: '2026-13-01' }, 'doneOn'],
+    ]
+    for (const [patch, field] of cases) {
+      const res = await postJson(`${base}/screening`, {
+        profileKey: 'A', sectionKey: 'bone', date: '2026-10-20', result: 'x', ...patch,
+      })
+      assert.equal(res.status, 400, `应回 400：${JSON.stringify(patch)}`)
+      assert.equal((await res.json()).field, field)
+    }
+    const noProf = await postJson(`${base}/screening`, {
+      profileKey: 'ZZZ', sectionKey: 'bone', date: '2026-10-20', result: 'x',
+    })
+    assert.equal(noProf.status, 400)
+    assert.equal(wb.getProfile('A', { includePrivate: true }).screening.length, before, '坏输入被写进了库')
+  })
+})

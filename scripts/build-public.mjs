@@ -272,6 +272,42 @@ function renderApp(source, { version, apiPrefix }) {
     ].join('\n'),
   )
 
+  /* ⑥.5 筛查结果写入：原型里的「⋯ 更多」当初只弹一个 toast（承诺了"补一条"却没通路），
+     独立评审 P1-3 点出来了。这里把那条 toast 换成真表单 + 真 POST。 */
+  .replace(
+    `    const pageBtn = $('[data-page]')`,
+    [
+      `    const saveScreen = $('#save-screening')`,
+      `    if (saveScreen) saveScreen.addEventListener('click', async () => {`,
+      `      const saved = {`,
+      `        profileKey: state.profileKey,`,
+      `        sectionKey: saveScreen.dataset.screening,`,
+      `        date: $('#scr-date').value,`,
+      `        result: $('#scr-result').value,`,
+      `        detail: $('#scr-detail').value,`,
+      `      }`,
+      `      saveScreen.disabled = true`,
+      `      try {`,
+      `        const res = await fetch(apiUrl('/screening'), {`,
+      `          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(saved),`,
+      `        })`,
+      `        const data = await res.json()`,
+      `        if (!res.ok) throw new Error(data.message || '保存失败')`,
+      `        toast(data.saved && data.saved.persisted === false`,
+      `          ? '已记下（演示模式：这次不会落到你自己的资料库）'`,
+      `          : '已记下这一次')`,
+      `        await reloadProfile()`,
+      `        render()`,
+      `      } catch (error) {`,
+      `        toast('没能保存：' + (error.message || '请稍后重试'))`,
+      `      } finally {`,
+      `        saveScreen.disabled = false`,
+      `      }`,
+      `    })`,
+      `    const pageBtn = $('[data-page]')`,
+    ].join('\n'),
+  )
+
   /* ⑦ 本机今天（YYYY-MM-DD）。**不用 toISOString()**：那是 UTC，东八区本地零点会退一天，
      用户记的"今天"就变成了昨天。手拼本地年月日。 */
   /* 锚点必须是「启动」标记而不是 esc：`test/ui-parity.test.mjs` 用
@@ -353,6 +389,7 @@ async function main() {
     ['原生会话挂载位', 'function renderAgentSlot'],
     ['发送改派发事件', 'new CustomEvent(EVT_DRAFT'],
     ['症状写入', "apiUrl('/symptoms')"],
+    ['筛查写入', "apiUrl('/screening')"],
     ['本机今天', 'function todayIso'],
     ['保存后重取档案', 'async function reloadProfile'],
     ['boot 挂载位', 'renderAgentSlot()'],

@@ -21,7 +21,7 @@
 | 开发版（接真接口） | ✅ | `probe-dev.py` 全绿：同一套界面接上 SQLite 后仍然对 |
 | 数据模型冻结 | ✅ | 24 张表、0 判读列、`0001` sha256 钉住；`check-schema` 每次 check 都核 |
 | 临床试验库 | ✅ **2/6 通道查过，4 通道如实未查** | 479 条；`ictrp` 命中被截断已落 `truncated`。**不是"共 479 项相关试验"**，`research/pbc-cancer/README.md` 有逐来源终态表 |
-| 装机（包层） | ✅ | 0.2.4 已装进 `~/.dsh/profiles/desktop`，副本与 tgz 逐文件一致 |
+| 装机（包层） | ✅ | 0.2.5 已装进 `~/.dsh/profiles/desktop`，副本与 tgz 逐文件一致 |
 | 装机（界面层 / 真机） | ⏳ **未验证** | 需重启 Harness 后在左侧新建会话再打开工作台；ACC-04 以后全部未验 |
 | 独立评审 | ✅ 已回收并处理 | P0 3 条全部修复并反向验证（`docs/DESIGN-REVIEW.md` 附开发者处理记录） |
 | 发布 | ⏳ | M7 |
@@ -35,25 +35,25 @@
 界面截图全部来自**跑起来的开发版**（真 dev-server、真 SQLite，不是画的原型图）；图里右上角的版本 chip
 就是这份代码的版本，与 `package.json` 同源。
 
-![看板：今天要做什么、最近的数、接下来](docs/screenshots/readme-dashboard-0.2.4.png)
+![看板：今天要做什么、最近的数、接下来](docs/screenshots/readme-dashboard-0.2.5.png)
 **看板**——"这周我该做什么"是复诊前最常问自己的一句话；卡片只放"能点进去的"，不放装饰。
 
-![记一次痒：0–10 自己打分](docs/screenshots/readme-symptom-itch-0.2.4.png)
+![记一次痒：0–10 自己打分](docs/screenshots/readme-symptom-itch-0.2.5.png)
 **记一次痒**——"痒到什么程度"只有本人才说得准，所以是 0–10 的自评滑条，不是医学量表；固定写着"AI 不会替你打分"。
 
-![生化卡：每张单子自己的参考上限](docs/screenshots/readme-labs-cards-0.2.4.png)
+![生化卡：每张单子自己的参考上限](docs/screenshots/readme-labs-cards-0.2.5.png)
 **生化卡**——同一个指标在同一行里并排"这次的值 / 这张单子自带的上限 / 倍数"。上限逐条来自报告，**缺上限就显示"需参考上限"，绝不借通用值**。
 
-![生化线：三条线各自的刻度](docs/screenshots/readme-labs-chart-0.2.4.png)
+![生化线：三条线各自的刻度](docs/screenshots/readme-labs-chart-0.2.5.png)
 **生化线**——ALP/GGT/总胆红素三条线各自归一化到自己的刻度，治疗节点画竖虚线；**不做趋势预测**。
 
-![并发症筛查：按系统分节](docs/screenshots/readme-screening-0.2.4.png)
+![并发症筛查：按系统分节](docs/screenshots/readme-screening-0.2.5.png)
 **并发症筛查**——骨密度 / 甲状腺 / 胃镜 / 维生素 / 肝影像五节，每节只记"报告原文 + 日期"，不推断该不该查。
 
-![治疗方案折叠卡：默认收起](docs/screenshots/readme-pathway-closed-0.2.4.png)
+![治疗方案折叠卡：默认收起](docs/screenshots/readme-pathway-closed-0.2.5.png)
 **治疗方案（收起态）**——长期病程里病历越攒越厚，默认只给你看"方案 + 一句概要"，要细节再展开。
 
-![治疗方案折叠卡：展开五块](docs/screenshots/readme-pathway-open-0.2.4.png)
+![治疗方案折叠卡：展开五块](docs/screenshots/readme-pathway-open-0.2.5.png)
 **治疗方案（展开态）**——方案 / 指标与趋势 / 影像发现 / 副作用 / 心理营养，五块固定顺序；打印时自动全部展开（`@media print`）。
 
 ## 三条产品底线

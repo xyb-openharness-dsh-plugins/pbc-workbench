@@ -16,7 +16,7 @@ import { assertWorkspacePath } from './server.js'
 import { close, migrate, openDatabase } from './store.js'
 import { bootstrap as readBootstrap, getProfile as readProfile, listProfiles } from './readmodels.js'
 import { seedDemo, hasDemoData, DB_FILE } from './demo.js'
-import { addSymptomLog, removeSymptomLog } from './writes.js'
+import { addScreeningRecord, addSymptomLog, removeSymptomLog } from './writes.js'
 import { APP_INFO } from '../lib/version.js'
 
 export class Workbench {
@@ -108,6 +108,11 @@ export class Workbench {
   /** 删掉记错的那一条。 */
   removeSymptom(id) {
     return removeSymptomLog(this.db, id)
+  }
+
+  /** 记一条筛查结果。返回里带 `persisted`：内存演示库不能假装写盘成功。 */
+  addScreening(input) {
+    return { ...addScreeningRecord(this.db, input), persisted: !this.isDemo }
   }
 
   close() {

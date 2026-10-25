@@ -8,6 +8,26 @@
 - **接线前置修复**：`cordis.patch.yml` 补 `config.root: !!js dshHomePath('pbc')`；`dsh/index.js` 声明 `Config.root`
   （只补一边会被 `check-workbench-package` ⑤ 判为"注入但未声明"，装机后重启回内存库）。
 
+## 0.2.5 — 2026-10-25（把"承诺了却没通路"的三处补成真功能）
+
+同为评审 P1 的收尾。共同点是：**界面上有按钮、点了有反馈，但反馈是假的，或者点了只是换个页签**。
+
+- **P1-3 筛查结果写入**（用户可见：骨密度/甲状腺/胃镜/维生素/肝影像都能自己记了）。
+  原型里每张筛查卡底部有个「⋯ 更多」按钮，点击只弹 `toast('⋯ 更多：手工补一条 / 改这一条 / 看原文')`——
+  CRUD 双通道矩阵承诺了 10 个实体的手工通道，实现只有这一个 toast。改为卡内真表单
+  （`<details class="add-form">` 默认收起，不占视线）+ `POST /screening`：
+  `dsh/writes.js` 加 `addScreeningRecord()`（`result_text` 存报告原文，不解析；
+  `section_key` 只认五个已知值；分节行缺了就按 `lib/screening-titles.js` 补一行，标题只一个来源）、
+  `Workbench.addScreening()`、路由、`health.capabilities` 加 `screening`。
+  新增 `test/symptom-write.test.mjs` ⑧⑨ 两条（原文逐字保留 / 分节标题落库 / 坏输入 400 不落地），
+  `probe-dev.py` 新增 **A11**（展开表单 → 填 → 保存 → 筛查条数必须 +1，实测 5→6）。
+- **P1-2 看板两张卡没有可点的东西**（用户可见：看板上每个数字都能点进去看来源）。
+  「接下来」卡只有一行静态文字，「最近变化」卡只有两个数字，患者看完不知道该去哪。
+  加 `data-goto`：`followup/cadence`（复查节奏怎么算的）、`labs/chart`（看上次化验的趋势）、
+  `symptoms/log`（看全部感受记录）。
+- 顺带：「最近变化」卡里的感受也改掉了裸插值，`null` 显示成「痒 未记 / 累 未记」（与记录页同口径）。
+- 校验：`npm run check` **87 test 全绿**、`probe-prototype.py` 与 `probe-dev.py` 双绿、`audit` 0 fail。
+
 ## 0.2.4 — 2026-10-25（M2 独立评审翻案：修 3 条 P0）
 
 这一版**没有新功能**，全部是被独立评审推翻后补的。三条 P0 的共同点是"文档立了红线、代码没做到、

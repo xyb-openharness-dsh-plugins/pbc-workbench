@@ -13,6 +13,7 @@
  *    用户显式标私密才 private，且私密记录**不进导出**（导出层二次过滤）。
  */
 import { StoreError } from './store.js'
+import { SCREENING_KEYS, screeningTitle } from '../lib/screening-titles.js'
 
 /** 校验失败。`code` 供路由翻译成 400，`field` 供前端把错误挂到具体控件上。 */
 export class ValidationError extends StoreError {
@@ -106,4 +107,43 @@ export function removeSymptomLog(db, id) {
   if (!Number.isInteger(n) || n <= 0) throw new ValidationError('id 不是有效数字', 'id')
   const info = db.prepare('DELETE FROM symptom_logs WHERE id = ?').run(n)
   return Number(info.changes) > 0
+}
+
+/**
+ * 记一条筛查结果（骨密度/甲状腺/胃镜/维生素/肝影像）。
+ *
+ * 口径：`result_text` 存**报告原文**，不解析、不推断"该不该查"、不给建议间隔。
+ * `detail_text` 是可选的补充说明（比如"报告没写分级"）。
+ */
+export function addScreeningRecord(db, input = {}) {
+  const profileKey = String(input.profileKey ?? '').trim()
+  if (!profileKey) throw new ValidationError('缺少档案标识（profileKey）', 'profileKey')
+  if (!db.prepare('SELECT 1 FROM profiles WHERE profile_key = ?').get(profileKey)) {
+    throw new ValidationError(`没有这个档案：${profileKey}`, 'profileKey')
+  }
+  const sectionKey = String(input.sectionKey ?? '').trim()
+  if (!SCREENING_KEYS.includes(sectionKey)) {
+    throw new ValidationError(`筛查分节只能是 ${SCREENING_KEYS.join(' / ')}`, 'sectionKey')
+  }
+  const date = assertIsoDate(input.date, 'doneOn')
+  const result = typeof input.result === 'string' ? input.result.trim() : ''
+  if (!result) throw new ValidationError('报告原文不能为空——这一条记的是报告上写了什么', 'result')
+  if (result.length > 2000) throw new ValidationError('报告原文太长了（超过 2000 字），请只抄结论段', 'result')
+  const detail = typeof input.detail === 'string' ? input.detail.trim() : ''
+  const dept = typeof input.dept === 'string' && input.dept.trim() ? input.dept.trim() : null
+
+  /* 分节行必须存在，否则读模型按 section_titles 取标题时会漏掉这一节。
+     用户新开一个档案而演示数据没播分节时，这里补一行——标题取唯一来源。 */
+  const sec = db.prepare('SELECT 1 FROM screening_sections WHERE profile_key = ? AND section_key = ?').get(profileKey, sectionKey)
+  if (!sec) {
+    const maxOrd = db.prepare('SELECT COALESCE(MAX(ord), 0) AS n FROM screening_sections WHERE profile_key = ?').get(profileKey).n
+    db.prepare('INSERT INTO screening_sections (profile_key, section_key, section_title, ord) VALUES (?, ?, ?, ?)')
+      .run(profileKey, sectionKey, screeningTitle(sectionKey), maxOrd + 1)
+  }
+
+  const maxOrd = db.prepare('SELECT COALESCE(MAX(ord), 0) AS n FROM screening_records WHERE profile_key = ?').get(profileKey).n
+  const info = db.prepare(`INSERT INTO screening_records
+    (profile_key, section_key, done_on, result_text, detail_text, dept, ord)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(profileKey, sectionKey, date, result, detail || null, dept, maxOrd + 1)
+  return { id: Number(info.lastInsertRowid), sectionKey, date }
 }

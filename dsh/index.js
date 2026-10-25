@@ -60,6 +60,7 @@ export function apply(ctx) {
       /* 写入通路（闭环的"记录"半环）。没有它们时路由会回 501 symptom_write_unavailable，
          而不是让前端静默只写内存。 */
       addSymptom: (input) => requireSource().addSymptom(input),
+      addScreening: (input) => requireSource().addScreening(input),
       removeSymptom: (id) => requireSource().removeSymptom(id),
       isDemo: () => (source ? source.isDemo : null),
     },

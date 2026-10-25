@@ -22,6 +22,7 @@
   A8 页面报错 / console error / 失败请求均为 0
   A9 静态资源全部 200（漏剥前缀的头号症状就是这里 404）
   A10 **记一次痒真的写进库**（点保存 → 再吞一次 bootstrap → 症状条数 +1）。
+  A11 **记一条筛查结果真的写进库**（同上，原型里那个「⋯ 更多」当初只弹 toast）。
       这是闭环的"记录"半环：独立评审实测出前端只写内存、刷新即丢。
 """
 import json
@@ -249,6 +250,38 @@ def main() -> int:
                         f"A10 记一次痒后症状条数没变（{before_sym} → {after_sym}）：保存还是只写内存"
                     )
 
+            # A11 记一条筛查结果：同样要真落库（原型里的「⋯ 更多」当初只弹 toast）
+            screening_write = None
+            page.set_viewport_size({"width": 1280, "height": 900})
+            page.wait_for_timeout(120)
+            page.click('#sidenav [data-view="screening"]')
+            page.wait_for_timeout(60)
+            if page.query_selector('#subtabs [data-sub="bone"]'):
+                page.click('#subtabs [data-sub="bone"]')
+            page.wait_for_timeout(150)
+            fetch_screening = """async () => {
+                  const base = location.pathname.replace(/\\/ui\\/.*$/, '');
+                  const d = await (await fetch(base + '/bootstrap')).json();
+                  return d.profiles.find((p) => p.key === window.__probeKey).screening.length;
+                }"""
+            before_scr = page.evaluate(fetch_screening)
+            if not page.query_selector('#save-screening'):
+                problems.append("A11 筛查页找不到「保存这一次」按钮（表单没渲染出来）")
+            else:
+                # 表单默认收起（不占视线），先展开再填——这也是"默认收起"这条设计的实测
+                if not page.is_visible('#scr-result'):
+                    page.click('.add-form > summary')
+                    page.wait_for_timeout(150)
+                page.fill('#scr-result', '探针记的骨密度-不要留下来')
+                page.click('#save-screening')
+                page.wait_for_timeout(600)
+                after_scr = page.evaluate(fetch_screening)
+                screening_write = {"before": before_scr, "after": after_scr}
+                if after_scr != before_scr + 1:
+                    problems.append(
+                        f"A11 记一条筛查后条数没变（{before_scr} → {after_scr}）：表单还是假的"
+                    )
+
             # A7 三档宽度无横向溢出
             overflow = {}
             for w in (1280, 1024, 760):
@@ -291,6 +324,7 @@ def main() -> int:
                 "failedRequests": failed,
                 "non200": non200,
                 "symptomWrite": symptom_write,
+                "screeningWrite": screening_write,
                 "health": health,
                 "ok": not problems,
                 "problems": problems,

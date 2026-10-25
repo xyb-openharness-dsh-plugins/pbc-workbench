@@ -49,7 +49,7 @@
     SOURCE_STATES = Array.isArray(data.sourceStates) ? data.sourceStates : []
     return true
   }
-  const VERSION = 'v0.2.4'
+  const VERSION = 'v0.2.5'
   const EVT_DRAFT = 'pbc:agent-draft'
 
   const NAV = [
@@ -232,6 +232,13 @@
   function aiButton(prompt, ctxLabel) {
     return `<button class="btn ghost small" type="button" data-draft="${esc(prompt)}" data-ctx="${esc(ctxLabel || '')}">AI 帮我填</button>`
   }
+  /* 本机今天的 YYYY-MM-DD。不用 toISOString().slice(0,10)：那是 UTC 日期，
+     东八区凌晨会退成前一天，患者记的"今天"就落到昨天去了。 */
+  function localToday() {
+    const d = new Date()
+    const p = (n) => String(n).padStart(2, '0')
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+  }
   function kv(k, v, n) {
     return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${v}</span>${n ? `<span class="n">${esc(n)}</span>` : ''}</div>`
   }
@@ -262,12 +269,19 @@
           <div class="card-head"><span class="card-title">接下来</span></div>
           ${kv('参考复查节点', '2026-11-08（约 1 个月后）', '±30 天是工作台显示带宽，不是指南内容')}
           <p class="muted" style="margin-top:6px">起点 ${esc(p.startedAt)} · 按 6 个月间隔推算，未按分期调整</p>
+          <div class="actions-row" style="margin-top:8px">
+            <button class="btn ghost small" type="button" data-goto="followup/cadence">看复查节奏怎么算的</button>
+          </div>
         </div>
         <div class="card">
           <div class="card-head"><span class="card-title">最近变化</span></div>
           ${kv('最近一次 ALP', `${lastLabs.items.find((i) => i.code === 'ALP').value} U/L`, `${lastLabs.date} · ${lastLabs.items[0].lab}`)}
-          ${kv('最近一次记录的感受', lastSym ? `痒 ${lastSym.itch}/10 · 累 ${lastSym.fatigue}/3` : '无', lastSym ? lastSym.date : '')}
+          ${kv('最近一次记录的感受', lastSym ? `${lastSym.itch == null ? '痒 未记' : `痒 ${lastSym.itch}/10`} · ${lastSym.fatigue == null ? '累 未记' : `累 ${lastSym.fatigue}/3`}` : '无', lastSym ? lastSym.date : '')}
           <p class="muted" style="margin-top:6px">只并列事实，不判断好坏。</p>
+          <div class="actions-row" style="margin-top:8px">
+            <button class="btn ghost small" type="button" data-goto="labs/chart">看上次化验的趋势</button>
+            <button class="btn ghost small" type="button" data-goto="symptoms/log">看全部感受记录</button>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -635,7 +649,16 @@
           ${rec.map((r) => `<li><span class="time">${esc(r.date)}</span><span>${esc(r.result)}${r.detail ? `<br><span class="muted">${esc(r.detail)}</span>` : ''}</span></li>`).join('')}
         </ul>` : '<p class="muted" style="margin-top:8px">还没有记录。</p>'}
         ${kind === 'endoscopy' && rec.length ? `<p class="muted" style="margin-top:8px">距上次 ${monthsSince(rec[rec.length - 1].date)} 个月 · 参考间隔 12–24 个月（工作台默认值，不是指南内容）</p>` : ''}
-        <div class="actions-row" style="margin-top:10px"><button class="btn ghost" type="button" data-more="1">⋯ 更多</button></div>
+        <details class="add-form">
+          <summary>记一次${esc(title)}的结果</summary>
+          <div class="row">
+            <label class="field"><span>检查日期</span><input type="date" id="scr-date" value="${localToday()}"></label>
+            <label class="field"><span>报告原文</span><input type="text" id="scr-result" placeholder="照抄报告结论那一句，例如「腰椎 T 值 -1.8」"></label>
+          </div>
+          <label class="field" style="margin-top:8px"><span>补充（可空）</span><input type="text" id="scr-detail" placeholder="报告没写分级 / 换了一家医院"></label>
+          <p class="muted">只抄报告原文。工作台不判断这个结果好不好，也不替你决定多久再查。</p>
+          <div class="actions-row"><button class="btn" type="button" data-screening="${esc(kind)}" id="save-screening">保存这一次</button></div>
+        </details>
       </div>`
   }
   function monthsSince(dateStr) {
@@ -916,8 +939,33 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 2000)
       toast('已生成快照文件')
     })
-    const more = $('[data-more]')
-    if (more) more.addEventListener('click', () => toast('⋯ 更多：手工补一条 / 改这一条 / 看原文'))
+    const saveScreen = $('#save-screening')
+    if (saveScreen) saveScreen.addEventListener('click', async () => {
+      const saved = {
+        profileKey: state.profileKey,
+        sectionKey: saveScreen.dataset.screening,
+        date: $('#scr-date').value,
+        result: $('#scr-result').value,
+        detail: $('#scr-detail').value,
+      }
+      saveScreen.disabled = true
+      try {
+        const res = await fetch(apiUrl('/screening'), {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(saved),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || '保存失败')
+        toast(data.saved && data.saved.persisted === false
+          ? '已记下（演示模式：这次不会落到你自己的资料库）'
+          : '已记下这一次')
+        await reloadProfile()
+        render()
+      } catch (error) {
+        toast('没能保存：' + (error.message || '请稍后重试'))
+      } finally {
+        saveScreen.disabled = false
+      }
+    })
     const pageBtn = $('[data-page]')
     if (pageBtn) pageBtn.addEventListener('click', () => openPage(basicsPage()))
   }
