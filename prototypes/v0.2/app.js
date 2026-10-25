@@ -889,37 +889,67 @@
     return Array.isArray(all[p.key]) ? all[p.key] : []
   }
 
+  function lastLab(code) {
+    const p = profile()
+    const last = p.labs[p.labs.length - 1]
+    return last ? last.items.find((i) => i.code === code) || null : null
+  }
+
+  /* 试验卡：结构参照 biliary-tract-workbench `trialCard()`——
+     粗筛符合度大字 + 四档 band + ✓/✕/? 逐条 + 硬性单列。 */
+  function trialCard(t) {
+    const bandCls = { high: 'ok', partial: 'warn', needs_info: 'grey', ineligible: 'no' }[t.band] || 'grey'
+    const mark = (tier) => (tier === 'satisfied' ? '✓' : tier === 'conflict' ? '✕' : '?')
+    const order = { conflict: 0, undetermined: 1, satisfied: 2 }
+    const sorted = [...t.rows].sort((a, b) => order[a.tier] - order[b.tier])
+    const line = (r) => `<div class="crit ${r.tier}">
+        <div class="crit-line"><span class="crit-mark ${r.tier}">${mark(r.tier)}</span><b>${esc(r.rule)}</b>${r.hard ? '<span class="muted">硬性</span>' : ''}</div>
+        <small><b>${esc({ satisfied: '符合', conflict: '冲突', undetermined: '待确认' }[r.tier])}</b> · ${esc(r.why)}${r.source ? ' · 记录来源：' + esc(r.source) : ''}</small>
+      </div>`
+    return `<section class="trial-card ${t.band === 'ineligible' ? 'ineligible' : ''}">
+      <div class="trial-top">
+        <div>
+          <div class="trial-tags">
+            <span class="pill grey">${esc(t.sourceId || '来源未记')}</span>
+            <span class="pill no">登记状态，未核实</span>
+          </div>
+          <h2>${esc(t.title)}</h2>
+          <p class="trial-reg">${esc(t.statusNote)}</p>
+        </div>
+        <div class="fit ${bandCls}"><b>${t.pct}<small>%</small></b><span>粗筛符合度</span><em>${esc(t.bandLabel)}</em></div>
+      </div>
+      <div class="match-counts">
+        <span class="pill ok">符合 ${t.counts.satisfied}</span>
+        ${t.counts.conflict ? `<span class="pill no">冲突 ${t.counts.conflict}</span>` : ''}
+        ${t.counts.undetermined ? `<span class="pill grey">待确认 ${t.counts.undetermined}</span>` : ''}
+      </div>
+      <div class="crit-list">${sorted.slice(0, 4).map(line).join('')}</div>
+      ${sorted.length > 4 ? `<details class="crit-more"><summary>其余 ${sorted.length - 4} 条条件</summary><div class="crit-list">${sorted.slice(4).map(line).join('')}</div></details>` : ''}
+      <div class="small-note">粗筛符合度 = 符合项 ÷ 全部条件（未知项按 0 计，所以只会偏低、不会偏高）。
+        它不是入组资格，也不代表效果；硬性条件不满足的单列在下面。</div>
+    </section>`
+  }
+
   function vTrialsSearch() {
     const p = profile()
     const m = state.trialMatch
     const tiers = trialTiers()
     return `
-      ${tiers.length ? `<div class="card">
-        <div class="card-head">
-          <span class="card-title">入排条款对照 · 三档</span>
-          <span class="badge">登记状态，未核实</span>
-        </div>
-        <p class="muted">三档只回答一件事：<b>本机记录与登记里写着的条款是否一致</b>。
-          它<b>不是</b>入组资格判定，也不给百分比——百分比会把这个动作伪装成"你被录取的概率"。</p>
-        ${tiers.map((t) => `
-          <div class="tier-block">
-            <div class="tier-head">
-              <b>${esc(t.title)}</b>
-              <span class="tier-counts">
-                <span class="tier ok">符合 ${t.counts.satisfied}</span>
-                <span class="tier bad">冲突 ${t.counts.conflict}</span>
-                <span class="tier q">待确认 ${t.counts.undetermined}</span>
-              </span>
-            </div>
-            <p class="muted">可判定 ${t.decidable} / ${t.total} 条；来源 ${esc(t.sourceId || '未记')} · ${esc(t.statusNote)}</p>
-            <ul class="list tier-rows">${t.rows.map((r) => `<li>
-              <span class="tier ${r.tier === 'satisfied' ? 'ok' : r.tier === 'conflict' ? 'bad' : 'q'}">${esc({ satisfied: '符合', conflict: '冲突', undetermined: '待确认' }[r.tier])}</span>
-              <span><b>${esc(r.rule)}</b><br><span class="muted">${esc(r.why)}${r.source ? ' · 来源：' + esc(r.source) : ''}</span></span>
-            </li>`).join('')}</ul>
-          </div>`).join('')}
-        <p class="muted" style="margin-top:8px">「待确认」不等于不符合，只表示本机没有这一项记录（例如纳入/排除标准原文本项目未采集）。
-          排序按登记来源顺序，<b>不按档位排</b>——按档位排会让人以为前面的更适合。</p>
+      ${tiers.length ? `<div class="card facts-card">
+        <div class="card-head"><span class="card-title">用来对照的病理特点</span><span class="muted">每一项都来自你的记录；没记的写「未记录」</span></div>
+        <div class="fact-grid">${([
+          ['抗体 AMA', p.antibodies._amaLabel || (p.antibodies.ama === 'positive' ? '阳性' : p.antibodies.ama === 'negative' ? '阴性' : '未检测'), p.antibodies.note || '未记录'],
+          ['纤维化 / 影像', p.fibrosis.value, p.fibrosis.date + ' · ' + p.fibrosis.method],
+          ['最近 ALP', `${lastLab('ALP')?.value ?? '未记录'} U/L`, lastLab('ALP') ? `${lastLab('ALP').lab} · ${lastLab('ALP').refHigh == null ? '本单未印上限' : '上限 ' + lastLab('ALP').refHigh}` : '—'],
+          ['最近总胆红素', `${lastLab('TBil')?.value ?? '未记录'} μmol/L`, lastLab('TBil') ? `上限 ${lastLab('TBil').refHigh ?? '未印'}` : '—'],
+          ['最近血小板', `${lastLab('PLT')?.value ?? '未记录'} ×10⁹/L`, lastLab('PLT') ? `下限 ${lastLab('PLT').refLow ?? '未印'}` : '—'],
+          ['年龄 / 性别', `${p.age} 岁 · ${p.sex}`, '档案基本信息'],
+        ]).map(([k, v, src]) => `<dl><dt>${esc(k)}</dt><dd><b>${esc(v)}</b><span>${esc(src)}</span></dd></dl>`).join('')}</div>
+        <div class="small-note">只描述你记录里有什么。缺的项不是"不符合"——它只会让下面的条目落进「待确认」。</div>
       </div>` : ''}
+      ${tiers.length ? `<div class="section-title"><div><h2>按当前记录能对上的（${tiers.filter((t) => t.band !== 'ineligible').length}）</h2><p>未知项越少排得越前；硬性条件不满足的单列在下面，不会混进来</p></div></div>` : ''}
+      ${tiers.filter((t) => t.band !== 'ineligible').map((t) => trialCard(t)).join('')}
+      ${tiers.some((t) => t.band === 'ineligible') ? `<details class="bad-trials"><summary>硬性条件不满足的 ${tiers.filter((t) => t.band === 'ineligible').length} 条（点开看是哪一条挡住了）</summary>${tiers.filter((t) => t.band === 'ineligible').map((t) => trialCard(t)).join('')}</details>` : ''}
       <div class="card">
         <div class="card-head"><span class="card-title">临床试验 · 分层线索</span><span class="badge">登记状态，未核实</span></div>
         <p class="muted">工作台产出的是<b>带证据链的检索线索</b>，不是入组资格结论。判定归医生与研究中心。</p>

@@ -81,7 +81,7 @@ test('⑪ 事实侧的「未在用」不能当成事实存在', () => {
   assert.equal(matchCriterion(c, facts({ udca_use: '在用：UDCA' })).tier, TIERS.SATISFIED)
 })
 
-test('⑫ 三档计数之和 = 条目总数；不产出百分比分数', () => {
+test('⑫ 三档计数之和 = 条目总数；粗筛符合度把未知项按 0 计（只会偏低）', () => {
   const criteria = [
     { rule_text: '入选：AMA 阳性', fact_key: 'ama', decidable: 1 },
     { rule_text: '纳入原文', fact_key: null, decidable: 0, undecidable_reason: '未采集' },
@@ -90,9 +90,22 @@ test('⑫ 三档计数之和 = 条目总数；不产出百分比分数', () => {
   assert.equal(r.counts.satisfied + r.counts.conflict + r.counts.undetermined, r.total)
   assert.equal(r.total, 2)
   assert.equal(r.decidable, 1)
-  for (const banned of ['score', 'percent', 'rate', 'suitability', 'eligible']) {
+  /* 参照 biliary-tract-workbench 改用「粗筛符合度」后，这里守的**不是"没有数字"**，
+     而是"数字不许虚高"：分母含待确认，未确认的算 0 分。1 条符合 / 2 条总数 = 50%。 */
+  assert.equal(r.pct, 50, '未知项必须按 0 计，否则符合度会虚高')
+  assert.equal(r.band, 'needs_info')
+  /* 仍然不许出现这些词：它们会把粗筛读成资格判定 */
+  for (const banned of ['suitability', 'eligible', 'enrollable', 'recommendation']) {
     assert.ok(!(banned in r), `结果里不该有 ${banned}`)
   }
+})
+
+test('⑫b 硬性条件不满足 → 单列 ineligible，且不从三档里删掉', () => {
+  const criteria = [{ rule_text: '排除已确诊患者', fact_key: 'is_patient', decidable: 1, hard: 1 }]
+  const r = matchTrial({ recordId: 'T', title: 'x', criteria }, facts({ is_patient: '是（已确诊）' }))
+  assert.equal(r.band, 'ineligible')
+  assert.equal(r.hardUnmet, 1)
+  assert.equal(r.counts.conflict, 1, '三档计数照旧，硬性单列只是视图分组')
 })
 
 test('⑬ 按传入顺序返回，不按档位排（排序即推荐）', () => {

@@ -1981,6 +1981,11 @@
   "trialMatch": {
     "A": [
       {
+        "pct": 50,
+        "band": "needs_info",
+        "bandLabel": "需补充信息",
+        "hardUnmet": 0,
+        "hardUnmetRules": [],
         "recordId": "t1",
         "title": "【虚构示例】某二线药物在 PBC 中的随机对照研究",
         "sourceId": "ctv",
@@ -1999,6 +2004,7 @@
             "tier": "satisfied",
             "rule": "入选：登记病种与本人诊断一致",
             "mine": "原发性胆汁性胆管炎（PBC）",
+            "hard": true,
             "source": "本工作台只服务 PBC 患者",
             "why": "条目要求\"有这一项\"，本机记录：原发性胆汁性胆管炎（PBC）"
           },
@@ -2012,6 +2018,11 @@
         ]
       },
       {
+        "pct": 50,
+        "band": "needs_info",
+        "bandLabel": "需补充信息",
+        "hardUnmet": 0,
+        "hardUnmetRules": [],
         "recordId": "t2",
         "title": "【虚构示例】PBC 瘙痒症状管理研究",
         "sourceId": "chictr_online",
@@ -2030,6 +2041,7 @@
             "tier": "satisfied",
             "rule": "入选：登记病种与本人诊断一致",
             "mine": "原发性胆汁性胆管炎（PBC）",
+            "hard": true,
             "source": "本工作台只服务 PBC 患者",
             "why": "条目要求\"有这一项\"，本机记录：原发性胆汁性胆管炎（PBC）"
           },
@@ -2045,6 +2057,11 @@
     ],
     "B": [
       {
+        "pct": 67,
+        "band": "partial",
+        "bandLabel": "部分符合",
+        "hardUnmet": 0,
+        "hardUnmetRules": [],
         "recordId": "t1",
         "title": "【虚构示例】PBC 肝硬化患者长期随访观察研究",
         "sourceId": "ictrp",
@@ -2063,6 +2080,7 @@
             "tier": "satisfied",
             "rule": "入选：登记病种与本人诊断一致",
             "mine": "原发性胆汁性胆管炎（PBC）",
+            "hard": true,
             "source": "本工作台只服务 PBC 患者",
             "why": "条目要求\"有这一项\"，本机记录：原发性胆汁性胆管炎（PBC）"
           },
@@ -2070,6 +2088,7 @@
             "tier": "satisfied",
             "rule": "入选：肝硬化（报告原文写着\"肝硬化\"）",
             "mine": "是（报告原文：肝硬化（报告原文））",
+            "hard": false,
             "source": "报告日期 2026-02-11",
             "why": "条目要求\"有这一项\"，本机记录：是（报告原文：肝硬化（报告原文））"
           },

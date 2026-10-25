@@ -215,6 +215,46 @@ svg.chart { width: 100%; height: 260px; display: block; }
   .phase-fold { break-inside: avoid; }
 }
 
+/* 临床试验卡（结构参照 biliary-tract-workbench trialCard） */
+.trial-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); padding: 11px 12px; margin-top: 10px; min-width: 0; }
+.trial-card.ineligible { border-color: #E7C9B4; background: #FDF8F4; }
+.trial-top { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; min-width: 0; }
+.trial-top > div:first-child { flex: 1 1 260px; min-width: 0; }
+.trial-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.trial-card h2 { font-size: 14px; margin: 5px 0 3px; font-weight: 650; }
+.trial-reg { font-size: 11.5px; color: var(--ink-3); margin: 0; }
+.pill { font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-2); background: #fff; white-space: nowrap; }
+.pill.ok { color: #3F4A2B; background: #EDF0E2; border-color: #C9CFB0; }
+.pill.no { color: #8A3A16; background: #FBEDE4; border-color: #E7C9B4; }
+.pill.grey { color: var(--ink-3); background: #F5F4EC; }
+.fit { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 74px; padding: 6px 8px; border-radius: var(--radius); border: 1px solid var(--line-2); background: #fff; }
+.fit b { font-size: 20px; line-height: 1; font-weight: 700; }
+.fit small { font-size: 11px; }
+.fit span { font-size: 10.5px; color: var(--ink-3); }
+.fit em { font-size: 11px; font-style: normal; font-weight: 600; }
+.fit.ok em { color: #3F4A2B; } .fit.warn em { color: #8A6A16; } .fit.no em { color: #8A3A16; } .fit.grey em { color: var(--ink-3); }
+.match-counts { display: flex; gap: 5px; flex-wrap: wrap; margin: 8px 0 4px; }
+.crit-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.crit { border-left: 2px solid var(--line-2); padding-left: 7px; min-width: 0; }
+.crit.satisfied { border-left-color: #C9CFB0; } .crit.conflict { border-left-color: #E7C9B4; } .crit.undetermined { border-left-color: #E4D9AE; }
+.crit-line { display: flex; gap: 6px; align-items: baseline; font-size: 12.5px; min-width: 0; }
+.crit-mark { font-weight: 700; }
+.crit-mark.satisfied { color: #3F4A2B; } .crit-mark.conflict { color: #8A3A16; } .crit-mark.undetermined { color: #8A6A16; }
+.crit small { display: block; font-size: 11.5px; color: var(--ink-3); margin-top: 1px; }
+.crit-more { margin-top: 6px; }
+.crit-more > summary { cursor: pointer; font-size: 12px; color: var(--brand); }
+.small-note { font-size: 11.5px; color: var(--ink-3); margin-top: 8px; }
+.fact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fact-grid dl { margin: 0; min-width: 0; border-left: 2px solid var(--line); padding-left: 7px; }
+.fact-grid dt { font-size: 11px; color: var(--ink-3); }
+.fact-grid dd { margin: 2px 0 0; font-size: 12.5px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fact-grid dd span { font-size: 11px; color: var(--ink-3); }
+.section-title { margin: 14px 0 2px; } .section-title h2 { font-size: 13.5px; margin: 0; }
+.section-title p { font-size: 11.5px; color: var(--ink-3); margin: 2px 0 0; }
+.bad-trials { margin-top: 12px; } .bad-trials > summary { cursor: pointer; font-size: 12.5px; color: #8A3A16; }
+@media (max-width: 900px) { .fact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .trial-top { flex-direction: column; } .fit { flex-direction: row; gap: 6px; min-width: 0; } }
+@media (max-width: 600px) { .fact-grid { grid-template-columns: minmax(0, 1fr); } }
+
 /* 临床试验三档对照 */
 .tier-block { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; min-width: 0; }
 .tier-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
