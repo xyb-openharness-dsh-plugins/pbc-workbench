@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="description" content="小管宝 DuctPal · 原发性胆汁性胆管炎（PBC）患者工作台原型（虚构示例）">
+<title>小管宝 DuctPal · PBC 工作台（原型）</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%235C6B3C'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23F7F6EF'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="flower" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <g fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="2.4"/><circle cx="12" cy="5.6" r="2"/><circle cx="18.4" cy="12" r="2"/>
+          <circle cx="12" cy="18.4" r="2"/><circle cx="5.6" cy="12" r="2"/>
+        </g>
+      </svg>
+      <span class="brand-name">小管宝</span>
+      <span class="brand-en">DuctPal</span>
+      <span class="version-chip" id="version-chip">v0.1.0 · 原型</span>
+    </div>
+    <p class="statusline" id="statusline">虚构示例 · 演示「记录 → 对照 → 带走」三步</p>
+    <div class="actions">
+      <button class="btn ghost" id="profile-btn" type="button" aria-haspopup="listbox">切换档案</button>
+      <button class="btn" id="btn-ai" type="button" data-state="ready">AI 对话</button>
+      <button class="icon-btn" id="btn-ai-hide" type="button" aria-label="收起 AI 对话">×</button>
+    </div>
+  </header>
+
+  <div class="frame" id="frame">
+    <nav class="sidenav" id="sidenav" aria-label="功能线"></nav>
+    <main class="main" id="main" tabindex="-1">
+      <div class="subtabs" id="subtabs" role="tablist" aria-label="子页"></div>
+      <section class="view" id="view"></section>
+    </main>
+    <div class="splitter" id="agent-splitter" role="separator" aria-orientation="vertical"
+         aria-valuemin="25" aria-valuemax="45" aria-valuenow="35" aria-label="调整 AI 面板宽度" tabindex="0"></div>
+    <aside class="agent" id="agent" aria-label="AI 对话">
+      <div class="agent-head">
+        <strong>AI 对话</strong>
+        <span class="agent-hint" id="agent-hint">示例按钮只把提示词放进输入框，不会自动发送</span>
+      </div>
+      <div class="agent-body" id="agent-body">
+        <div class="msg ai">我是这个工作台的助手。你可以说「今天痒 6 分，晚上更重」，或者点页面里的「AI 帮我填」。</div>
+        <div class="msg me">上次的单子找不到，能帮我理一下吗</div>
+        <div class="msg ai">可以：在「报告与资料 → 导入」选文件，我会先把能认出的项目列成候选，你逐项核对再保存。</div>
+      </div>
+      <div class="agent-input">
+        <textarea id="agent-text" rows="2" placeholder="说一句话（Enter 发送，Shift+Enter 换行）"></textarea>
+        <button class="btn" id="agent-send" type="button">发送</button>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="footer">
+    <span>本工具只做资料整理与就诊准备，不构成医疗建议。</span>
+    <span class="footer-meta">演示数据全部虚构 · <span id="footer-profile">档案 A</span> · <span id="footer-built">原型 v0.1.0</span></span>
+  </footer>
+</div>
+
+<div class="page-view" id="page" hidden>
+  <div class="page-head">
+    <button class="btn ghost" id="page-back" type="button">← 返回</button>
+    <h2 id="page-title">详情</h2>
+    <button class="icon-btn" id="page-close" type="button" aria-label="关闭整页">×</button>
+  </div>
+  <div class="page-body" id="page-body"></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="demo-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

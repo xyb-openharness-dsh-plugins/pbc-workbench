@@ -55,7 +55,7 @@ SECTIONS = [
      ["38518985", "30343710", "42256626"], None),
     ("T8", "妊娠与生育",
      "primary biliary cholangitis pregnancy outcome ursodeoxycholic acid", 17, "T8b.esummary.json",
-     ["24879082", "40670882", "31479696"], None),
+     ["31479696", "24879082", "24984967"], None),
     ("T9", "肝移植指征与时机",
      "primary biliary cholangitis liver transplantation graft survival recurrence indication", 65, "R9b.esummary.json",
      ["30259857", "30343704", "35098931"], None),
@@ -87,7 +87,7 @@ L.append("")
 
 for tid, name, q, cnt, fn, pmids, supp in SECTIONS:
     L.append(f"## {tid} {name}\n")
-    L.append(f"检索式：`{q}`　（命中 {cnt} 条，相关度排序，取前 {len(pmids)} 条）\n")
+    L.append(f"检索式：`{q}`　（命中 {cnt} 条，相关度排序，自前 8 条命中中取 {len(pmids)} 条）\n")
     L.append("| PMID | 年份 | 期刊 | 标题 | 类型 |")
     L.append("| --- | --- | --- | --- | --- |")
     for p in pmids:
@@ -111,6 +111,7 @@ L.append("5. **T9 的“时机”阈值缺口。** 命中集中在移植结局�
 L.append("6. **T4 的并发症筛查证据薄弱。** HCC 簇证据充分（含 meta 分析），但“肝硬化并发症（静脉曲张/门脉高压）筛查”在 PBC 专病文献中几乎无独立研究，仅以补充检索式取到 1 条门脉高压无创评估研究，**不能据此形成筛查间隔建议**。")
 L.append("7. **无灰色文献/注册库/指南网站核查。** 未检索 ClinicalTrials.gov、EASL/AASLD 官网、Cochrane Library 全文库；因此本清单可能遗漏未被 PubMed 收录的指南与共识。")
 L.append("8. **检索时点偏置。** `sort=relevance` 下仍以近 5 年文献为主，经典旧文献（如 2000 年代 UDCA 剂量试验）可能未进入前 8 条，**本清单不是该主题的系统性全量证据**。")
+L.append("9. **相关度排序不是逐位稳定的。** 复核时发现：同一检索式两次调用，`count` 完全一致，但 `idlist` 的排序/边界会小幅漂移（T8 首轮第 8 位与复核不一致，故该行已替换为复核 `idlist` 内可复现的 PMID）。**复现时若个别 PMID 不在你的前 8 条里，属于排序漂移，不是数据错误**；PMID 本身均可独立检索到。")
 L.append("")
 
 with open(OUT, "w") as f:

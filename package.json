@@ -28,7 +28,10 @@
     "pack:check": "npm pack --dry-run",
     "probe:artifact": "node scripts/serve-artifact.mjs",
     "probe:tabs": "python3 scripts/verify-tabs-on-artifact.py",
-    "probe:page-view": "node scripts/probe-page-view.mjs"
+    "probe:page-view": "node scripts/probe-page-view.mjs",
+    "demo:data": "node demo/build-demo-data.mjs",
+    "probe:proto": "python3 scripts/probe-prototype.py",
+    "shots:readme": "python3 scripts/shoot-readme.py"
   },
   "dsh": {
     "bundle": {

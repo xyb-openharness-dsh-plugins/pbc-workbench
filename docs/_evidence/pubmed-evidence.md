@@ -1,6 +1,6 @@
 # PBC 工作台 · PubMed 文献取证（主题级命中清单）
 
-- **采集日期（UTC）**：`2026-10-25T02:39:54Z`
+- **采集日期（UTC）**：`2026-10-25T03:16:07Z`
 - **检索工具**：NCBI E-utilities — `esearch.fcgi`（取 ID 列表，`retmax=8`）+ `esummary.fcgi`（取元数据），`retmode=json`
 - **排序**：`esearch` 追加 `sort=relevance`。默认排序为“最新”，实测会把命中带偏到 HBV/MASLD 等相邻领域，故统一改为相关度排序；`count` 为不加 `retmax` 限制时的全库命中总数。
 
@@ -26,7 +26,7 @@
 
 ## T1 诊断与 AMA / ALP 阈值
 
-检索式：`primary biliary cholangitis diagnosis antimitochondrial antibody`　（命中 956 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis diagnosis antimitochondrial antibody`　（命中 956 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -36,7 +36,7 @@
 
 ## T2 UDCA 剂量与生化应答判定（Paris II / Barcelona / GLOBE / UK-PBC）
 
-检索式：`UK-PBC GLOBE score ursodeoxycholic acid response primary biliary cholangitis validation`　（命中 8 条，相关度排序，取前 3 条）
+检索式：`UK-PBC GLOBE score ursodeoxycholic acid response primary biliary cholangitis validation`　（命中 8 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -46,7 +46,7 @@
 
 ## T3 二线治疗：奥贝胆酸与贝特类
 
-检索式：`obeticholic acid bezafibrate fibrates second-line primary biliary cholangitis`　（命中 19 条，相关度排序，取前 3 条）
+检索式：`obeticholic acid bezafibrate fibrates second-line primary biliary cholangitis`　（命中 19 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -56,7 +56,7 @@
 
 ## T4 肝硬化并发症筛查与 HCC 监测
 
-检索式：`primary biliary cholangitis hepatocellular carcinoma incidence risk`　（命中 300 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis hepatocellular carcinoma incidence risk`　（命中 300 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -72,7 +72,7 @@
 
 ## T5 骨质疏松与脂溶性维生素
 
-检索式：`primary biliary cholangitis osteoporosis bone mineral density vitamin D`　（命中 38 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis osteoporosis bone mineral density vitamin D`　（命中 38 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -82,7 +82,7 @@
 
 ## T6 瘙痒与乏力管理
 
-检索式：`primary biliary cholangitis pruritus treatment`　（命中 766 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis pruritus treatment`　（命中 766 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -99,7 +99,7 @@
 
 ## T7 合并自身免疫病（干燥综合征 / 甲状腺 / 系统性硬化）
 
-检索式：`primary biliary cholangitis extrahepatic autoimmune disease Sjogren thyroid systemic sclerosis`　（命中 12 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis extrahepatic autoimmune disease Sjogren thyroid systemic sclerosis`　（命中 12 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -109,17 +109,17 @@
 
 ## T8 妊娠与生育
 
-检索式：`primary biliary cholangitis pregnancy outcome ursodeoxycholic acid`　（命中 17 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis pregnancy outcome ursodeoxycholic acid`　（命中 17 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
-| 24879082 | 2014 | Autoimmun Rev | Pregnancy in women with primary biliary cirrhosis | Review |
-| 40670882 | 2025 | Clin Rheumatol | Postpartum may be a risk factor for biochemical flares in patients with primary biliary cholangitis: A single-center experience | Journal Article |
 | 31479696 | 2019 | J Hepatol | Ursodeoxycholic acid in pregnancy? | Case Reports, Review |
+| 24879082 | 2014 | Autoimmun Rev | Pregnancy in women with primary biliary cirrhosis | Review |
+| 24984967 | 2015 | Clin Rev Allergy Immunol | Pregnancy and primary biliary cirrhosis: a case-control study | Research Support, Non-U.S. Gov't |
 
 ## T9 肝移植指征与时机
 
-检索式：`primary biliary cholangitis liver transplantation graft survival recurrence indication`　（命中 65 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis liver transplantation graft survival recurrence indication`　（命中 65 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -129,7 +129,7 @@
 
 ## T10 流行病学与疾病负担（中国 / 亚洲）
 
-检索式：`primary biliary cholangitis epidemiology prevalence incidence Asia China`　（命中 95 条，相关度排序，取前 3 条）
+检索式：`primary biliary cholangitis epidemiology prevalence incidence Asia China`　（命中 95 条，相关度排序，自前 8 条命中中取 3 条）
 
 | PMID | 年份 | 期刊 | 标题 | 类型 |
 | --- | --- | --- | --- | --- |
@@ -147,4 +147,5 @@
 6. **T4 的并发症筛查证据薄弱。** HCC 簇证据充分（含 meta 分析），但“肝硬化并发症（静脉曲张/门脉高压）筛查”在 PBC 专病文献中几乎无独立研究，仅以补充检索式取到 1 条门脉高压无创评估研究，**不能据此形成筛查间隔建议**。
 7. **无灰色文献/注册库/指南网站核查。** 未检索 ClinicalTrials.gov、EASL/AASLD 官网、Cochrane Library 全文库；因此本清单可能遗漏未被 PubMed 收录的指南与共识。
 8. **检索时点偏置。** `sort=relevance` 下仍以近 5 年文献为主，经典旧文献（如 2000 年代 UDCA 剂量试验）可能未进入前 8 条，**本清单不是该主题的系统性全量证据**。
+9. **相关度排序不是逐位稳定的。** 复核时发现：同一检索式两次调用，`count` 完全一致，但 `idlist` 的排序/边界会小幅漂移（T8 首轮第 8 位与复核不一致，故该行已替换为复核 `idlist` 内可复现的 PMID）。**复现时若个别 PMID 不在你的前 8 条里，属于排序漂移，不是数据错误**；PMID 本身均可独立检索到。
 
