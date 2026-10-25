@@ -9,11 +9,11 @@
 | --- | --- | --- | --- | --- |
 | **M0 骨架** | 认领 Issue + 私有仓 + `dsh-wb-cli init` + 接线前置 + 文档体系 + 基线 check | `npm run check` 退出码 0 且 `staticPass: true` | ✅ | Issue #35（`claimed`）；仓 `pbc-workbench`；init 168 文件；check `staticPass:true, errors:[]`；`config.root` 警告已消 |
 | **M1 调研 SPEC** | 三路调研（医学/用户/家族对比）+ DIFF-MATRIX（重名率实测）+ SPEC/USER-RESEARCH/SCENARIOS/PATIENT-FLOW/INTERACTION-DESIGN | 文档齐全 + 重名率 ≤70% + 孤儿页=0 论证 | ✅ 待 G1 签认 | 重名率 **11.1%（1/9）**；0 访谈如实；指南层未做（原件未取得） |
-| **M2 原型** | demo 单一源 + 四件套 + 折叠卡 + 窄宽 + HVT X1–X4 + 独立评审 | `file://` 可开；页签穷举 0 孤儿；X1–X4 出计数；DESIGN-REVIEW P0=0 | ✅ 待 G2 签认（DESIGN-REVIEW 未回收） | `probe-prototype.py` → `ok:true, problems:[]`：nav 9 / subs 30 / visited 30 / 空视图 0 / chart path 3 / 折叠卡 3 张默认全收起、展开 5 块 / AI 一键含病情上下文且未自动发送 / 三档宽度溢出 0；7 张 README 截图 1440×940@2x |
+| **M2 原型** | demo 单一源 + 四件套 + 折叠卡 + 窄宽 + HVT X1–X4 + 独立评审 | `file://` 可开；页签穷举 0 孤儿；X1–X4 出计数；DESIGN-REVIEW P0=0 | 🔧 原型与探针全绿；独立评审重新启动中 | `probe-prototype.py` → `ok:true, problems:[]`：nav 9 / subs 30 / visited 30 / 空视图 0 / chart path 3 / 折叠卡 3 张默认全收起、展开 5 块 / AI 一键含病情上下文且未自动发送 / 三档宽度溢出 0；7 张 README 截图 1440×940@2x |
 | **M3 数据模型** | schema/0001 + freeze-contract sha256 + 无判读列断言 | `npm run check:schema` + sha256 一致 | ✅ 待 G3 签认 | `check-schema` → `tables:24（0001–0004）· judgementColumns:0 · 0001 sha256 与合同一致`；反向验证：注入 `risk_level` 后检查器变红（已留痕 §3.1） |
 | **M4 临床库** | `fetch-pbc-trials-2026.mjs` + 四件套 | manifest=jsonl=sqlite | ✅ | **479 条**（chinadrugtrials 93 + ictrp 386）；6 源里 **2 源真查过**、4 源如实"未配置"；ictrp 标 `truncated`（`isLowerBound=true`）；`recordCount === jsonl行数 === sqlite行数` |
-| **M5 开发版** | 七步移植 + MinerU 六部件 + apiBase 契约 + test 五套 | `npm run check` 全绿 + parity | ✅ | `npm run check` 全绿（67 test 全过）；`npm run audit` **37/37**；`probe-dev.py` → `ok:true`：接口态（无横幅）、nav 9 / visited 30 / chart path 3 / 折叠卡 3 展开 15 块 / 草稿含上下文未发送 / 三档溢出 0 / 非 200 响应 0 |
-| **M6 装机** | 升版 → pack → 四要素对照 → pnpm add → bundles → 重启 → 真机走查 | 宿主信号 + 真机截图 | ⏳ | — |
+| **M5 开发版** | 七步移植 + MinerU 六部件 + apiBase 契约 + test 五套 | `npm run check` 全绿 + parity | ✅ | `npm run check` 全绿（**74 test** 全过）；`npm run audit` **37/37**；`probe-dev.py` → `ok:true`：接口态（无横幅）、nav 9 / visited 30 / chart path 3 / 折叠卡 3 展开 15 块 / 草稿含上下文未发送 / 三档溢出 0 / 非 200 响应 0 |
+| **M6 装机** | 升版 → pack → 四要素对照 → pnpm add → bundles → 重启 → 真机走查 | 宿主信号 + 真机截图 | 🔧 包已装、**界面层待验** | 包 `0.2.3`（sha256 `1e8e6dbb…`）装进 `~/.dsh/profiles/desktop`（devDependencies + bundles 双登记）；副本与 tgz `diff -rq` 逐文件一致；装机副本探针（假宿主）通过、`<root>/xyb-pbc.sqlite` 真落盘；修掉三个宿主语境 bug（无鉴权能力放行 / `null` 当状态码崩服务 / `health.build` 取错来源）。**真机走查未做——需用户重启 Harness**（Agent 不自行重启宿主）。 |
 | **M7 发布** | tag + release + CHANGELOG | release 附 tgz + sha256 | ⏳ | — |
 | **M8 回填** | BACKLOG 状态行（31 号） | PR 合并 | ⏳ | — |
 | **M9 回流** | DEV-REQUIREMENTS 追补 / starter LESSONS / 编号文档 / 检查器清单 | `npm run check` + `dsh-wb-cli audit` | ⏳ | — |
@@ -92,3 +92,22 @@
   ③`ui-parity` 的 title 归一化漏了渠道词（原型/开发版）→ 归一化时一并替换；
   ④"不许自建聊天框"用字面禁词误伤免责 toast → 改成禁 `function (mockReply|agentReply|fakeReply)`；
   ⑤`probe-dev.py` 的 A2 找"已连上"字样，而接口态**根本不渲染横幅** → 改断言横幅不存在。
+
+### M6 装机（包已装、界面层待验）
+
+- **目标 profile 是实测出来的，不是猜的**：本机 Desktop app 进程行末是 `~/.dsh/profiles/desktop`，
+  Web GUI 端口 56166；本机**不存在** `~/Library/Application Support/dsh-desktop/harness`，
+  所以 06 号文档里那条 2026-10-18 的结论在本机不适用。装机方式照抄该 profile 既有约定
+  （`devDependencies` 的 `file:` tgz + `dsh.profile.bundles` 双登记）。
+- **联网 `pnpm install` 不可用**：会去 `git ls-remote https://github.com/molly-ovo/dsh-workbuddy-oauth.git`
+  并超时 75s（该依赖在 lockfile 里已钉 codeload tarball、`node_modules` 里也已存在）。
+  用 `NODE_OPTIONS= corepack pnpm install --offline --no-frozen-lockfile` 可成。
+- **装机副本探针（假宿主）实测出三个只有宿主语境才暴露的真 bug**（dev 语境一个都罩不住）：
+  1. 宿主没给 `connection.requestRejection` 时**跳过鉴权继续放行** → 改 503 `AUTH_UNAVAILABLE`；
+  2. 宿主"不拒绝"返回 `null`，用 `!== undefined` 判 → `writeHead(null)` 抛
+     `ERR_HTTP_INVALID_STATUS_CODE: Invalid status code: null`，**整条服务链熄火**（不是 500）→ 改真值判；
+  3. `health.build` 从 `package.json` 取（无该字段）→ 永远 `null`、界面构建日期空白 → 改从 `lib/version.js` 取。
+- 鉴权逻辑抽到 `dsh/auth.js` 的 `createAuthorized({api, connection})` —— `dsh/index.js` 顶部 import
+  了 Schemastery，单测环境没有那份 peer，逻辑留在里面就没法测。新增 `test/host-auth.test.mjs` 7 条。
+- **界面层验收（ACC-04 以后）未做**：需要用户重启 Harness 才能加载新包，Agent 不自行重启宿主。
+  按 06 号"三层验收"口径，现在到"配置层 + 包层"，**不能写装机通过**。
