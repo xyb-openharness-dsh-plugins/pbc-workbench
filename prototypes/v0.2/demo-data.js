@@ -28,7 +28,9 @@
         {
           "name": "干燥症状",
           "since": "2024",
-          "note": "未做唇腺活检"
+          "note": "未做唇腺活检",
+          "dept": null,
+          "visibility": "shared"
         }
       ],
       "meds": [
@@ -37,7 +39,8 @@
           "doseText": "250 mg × 5 片/日（按 13–15 mg/kg 由医生确定）",
           "freq": "每日 2–3 次",
           "startDate": "2024-03-20",
-          "approval": "unverified"
+          "approval": "unverified",
+          "inUse": true
         }
       ],
       "adherence": [
@@ -81,7 +84,8 @@
           "scratch": true,
           "sleepBreaks": 3,
           "fatigue": 2,
-          "note": "夜里最痒，小腿外侧"
+          "note": "夜里最痒，小腿外侧",
+          "visibility": "shared"
         },
         {
           "date": "2026-09-21",
@@ -90,7 +94,8 @@
           "scratch": false,
           "sleepBreaks": 1,
           "fatigue": 2,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         },
         {
           "date": "2026-09-02",
@@ -99,7 +104,8 @@
           "scratch": false,
           "sleepBreaks": 0,
           "fatigue": 3,
-          "note": "这周加班，走两层楼要歇"
+          "note": "这周加班，走两层楼要歇",
+          "visibility": "shared"
         },
         {
           "date": "2026-08-14",
@@ -108,7 +114,8 @@
           "scratch": true,
           "sleepBreaks": 2,
           "fatigue": 2,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         },
         {
           "date": "2026-07-19",
@@ -117,7 +124,8 @@
           "scratch": false,
           "sleepBreaks": 0,
           "fatigue": 1,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         },
         {
           "date": "2026-06-27",
@@ -126,7 +134,8 @@
           "scratch": false,
           "sleepBreaks": 0,
           "fatigue": 2,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         },
         {
           "date": "2026-05-30",
@@ -135,7 +144,8 @@
           "scratch": false,
           "sleepBreaks": 1,
           "fatigue": 2,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         }
       ],
       "screening": [
@@ -143,31 +153,36 @@
           "type": "bone",
           "date": "2026-04-18",
           "result": "腰椎 T 值 -1.8（报告原文）",
-          "detail": "医生说\"有点低\"，未给用药方案"
+          "detail": "医生说\"有点低\"，未给用药方案",
+          "sectionTitle": "骨密度"
         },
         {
           "type": "thyroid",
           "date": "2026-03-02",
           "result": "TSH 4.9 mIU/L（参考 0.35–4.94）",
-          "detail": "内分泌科随访，未用药"
+          "detail": "内分泌科随访，未用药",
+          "sectionTitle": "甲状腺功能"
         },
         {
           "type": "endoscopy",
           "date": "2025-04-10",
           "result": "未见静脉曲张（报告原文）",
-          "detail": ""
+          "detail": "",
+          "sectionTitle": "胃镜（静脉曲张）"
         },
         {
           "type": "vitamin",
           "date": "2026-04-18",
           "result": "25-OH 维生素 D 22 ng/mL",
-          "detail": "医生建议补充，剂量未记"
+          "detail": "医生建议补充，剂量未记",
+          "sectionTitle": "脂溶性维生素"
         },
         {
           "type": "liver",
           "date": "2026-04-18",
           "result": "超声：肝表面尚光滑，未见明确占位",
-          "detail": ""
+          "detail": "",
+          "sectionTitle": "肝脏影像"
         }
       ],
       "questions": [
@@ -202,19 +217,22 @@
           "id": "d1",
           "name": "2026-10 肝功能.pdf",
           "date": "2026-10-08",
-          "parsed": true
+          "parsed": true,
+          "parseState": "parsed"
         },
         {
           "id": "d2",
           "name": "骨密度报告.jpg",
           "date": "2026-04-18",
-          "parsed": true
+          "parsed": true,
+          "parseState": "parsed"
         },
         {
           "id": "d3",
           "name": "2025-04 胃镜.pdf",
           "date": "2025-04-10",
-          "parsed": false
+          "parsed": false,
+          "parseState": "unparsed"
         }
       ],
       "trials": [
@@ -1011,12 +1029,16 @@
         {
           "name": "甲状腺功能减退",
           "since": "2021",
-          "note": "内分泌科，左甲状腺素 50 µg"
+          "note": "内分泌科，左甲状腺素 50 µg",
+          "dept": null,
+          "visibility": "shared"
         },
         {
           "name": "骨质疏松",
           "since": "2023",
-          "note": "未规律治疗"
+          "note": "未规律治疗",
+          "dept": null,
+          "visibility": "shared"
         }
       ],
       "meds": [
@@ -1025,14 +1047,16 @@
           "doseText": "250 mg × 6 粒/日",
           "freq": "每日 3 次",
           "startDate": "2018-09-18",
-          "approval": "unverified"
+          "approval": "unverified",
+          "inUse": true
         },
         {
           "name": "左甲状腺素钠片",
           "doseText": "50 µg 每日 1 次",
           "freq": "每日 1 次（另一科开）",
           "startDate": "2021-05-01",
-          "approval": "unverified"
+          "approval": "unverified",
+          "inUse": true
         }
       ],
       "adherence": [
@@ -1070,7 +1094,8 @@
           "scratch": false,
           "sleepBreaks": 0,
           "fatigue": 3,
-          "note": "下午就没劲了"
+          "note": "下午就没劲了",
+          "visibility": "shared"
         },
         {
           "date": "2026-09-18",
@@ -1079,7 +1104,8 @@
           "scratch": false,
           "sleepBreaks": 0,
           "fatigue": 3,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         },
         {
           "date": "2026-08-22",
@@ -1088,7 +1114,8 @@
           "scratch": false,
           "sleepBreaks": 1,
           "fatigue": 2,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         },
         {
           "date": "2026-07-11",
@@ -1097,7 +1124,8 @@
           "scratch": false,
           "sleepBreaks": 0,
           "fatigue": 2,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         },
         {
           "date": "2026-06-09",
@@ -1106,7 +1134,8 @@
           "scratch": true,
           "sleepBreaks": 2,
           "fatigue": 3,
-          "note": "天热更痒"
+          "note": "天热更痒",
+          "visibility": "shared"
         },
         {
           "date": "2026-05-16",
@@ -1115,7 +1144,8 @@
           "scratch": false,
           "sleepBreaks": 0,
           "fatigue": 2,
-          "note": ""
+          "note": "",
+          "visibility": "shared"
         }
       ],
       "screening": [
@@ -1123,31 +1153,36 @@
           "type": "bone",
           "date": "2026-02-11",
           "result": "股骨颈 T 值 -2.6（报告原文）",
-          "detail": "骨科建议用药，尚未开始"
+          "detail": "骨科医生说要用骨松的药，尚未开始",
+          "sectionTitle": "骨密度"
         },
         {
           "type": "thyroid",
           "date": "2026-09-02",
           "result": "TSH 2.1 mIU/L（参考 0.35–4.94）",
-          "detail": "维持原剂量"
+          "detail": "维持原剂量",
+          "sectionTitle": "甲状腺功能"
         },
         {
           "type": "endoscopy",
           "date": "2024-11-20",
           "result": "食管下段轻度静脉曲张（报告原文）",
-          "detail": "医生建议定期复查"
+          "detail": "医生建议定期复查",
+          "sectionTitle": "胃镜（静脉曲张）"
         },
         {
           "type": "vitamin",
           "date": "2026-02-11",
           "result": "25-OH 维生素 D 14 ng/mL",
-          "detail": ""
+          "detail": "",
+          "sectionTitle": "脂溶性维生素"
         },
         {
           "type": "liver",
           "date": "2026-09-02",
           "result": "超声：肝表面不平，脾大；未见明确占位",
-          "detail": "医生提到半年复查"
+          "detail": "医生提到半年复查",
+          "sectionTitle": "肝脏影像"
         }
       ],
       "questions": [
@@ -1177,13 +1212,15 @@
           "id": "d1",
           "name": "2026-09 超声.pdf",
           "date": "2026-09-02",
-          "parsed": true
+          "parsed": true,
+          "parseState": "parsed"
         },
         {
           "id": "d2",
           "name": "2026-02 骨密度.pdf",
           "date": "2026-02-11",
-          "parsed": true
+          "parsed": true,
+          "parseState": "parsed"
         }
       ],
       "trials": [
@@ -1320,7 +1357,7 @@
         {
           "d": "2026-02-11",
           "phase": "骨质疏松评估",
-          "text": "骨密度提示骨质疏松，骨科建议用药",
+          "text": "骨密度提示骨质疏松，骨科医生说要用骨松的药",
           "detail": {
             "regimen": {
               "summary": "加左甲状腺素（另一科）",

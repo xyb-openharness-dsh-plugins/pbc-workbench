@@ -1,6 +1,6 @@
 # 数据主体—关系—表 · PBC
 
-> 冻结版见 `schema/0001_initial.sql` + `schema/freeze-contract.md`（sha256 已钉）。
+> 冻结版见 `schema/0001_initial.sql` + `schema/freeze-contract.md`（sha256 已钉；现为 **v1.3**，0001–0004 四个迁移，24 张表）。
 > 校验：`node scripts/check-schema.mjs`（应用全部迁移 → 比对表清单 → 断言无判读列 → 核 sha256）。
 
 ## 1. 实体—关系
@@ -10,8 +10,9 @@ profiles (档案级, 1)
  ├─ fibrosis_records       纤维化：检查方式 + 报告原文（方式不互算）
  ├─ comorbidities          合并症（可 private）
  ├─ documents              事实层①：原件（sha256 / 解析状态）
- │   └─ parse_candidates   事实层②：候选（AI/MinerU 产出，pending→accepted/rejected）
- ├─ lab_panels ─ lab_items 事实层④：指标（一次化验 = 1 panel + N item）
+ │   ├─ parse_candidates   事实层②：候选（AI/MinerU 产出，pending→accepted/rejected）
+ │   └─ parse_jobs         解析台账（running→success/partial/failed；无外键，重试新增行）
+ ├─ lab_panels ─ lab_items 事实层④：指标（一次化验 = 1 panel + N item；item 可带自己的 lab_name）
  ├─ symptom_logs           表达面：痒/累（不落 grade）
  ├─ medications / adherence_events
  ├─ regimen_changes        换线：仅医生原话（无应答判定）
@@ -47,6 +48,8 @@ migrations                  迁移 ledger（checksum）
 | `todos.due` | 本仓不发提醒 | 恒 NULL |
 | `symptom_logs.*` | 表达面，无 CTCAE 分级 | `fatigue_1_3` CHECK 1–3 |
 | `section_titles.scope` | 一表多域（labs/symptoms/screening/…) | 同域内 `section_key` 唯一 |
+| `lab_items.lab_name` | 汇总单会混本院与外院，参考区间不同却来源写成一个 → 用户以为自己记错 | 为空回落 `lab_panels.lab_name`；不要"取第一条"当整张单子的来源 |
+| `parse_jobs.state` | "解析中"只活在这里，不写进 `documents.parse_state` | 重试新增一行，旧失败行保留；`document_id` 可空且不建外键 |
 
 ## 4. 持久化与选型
 

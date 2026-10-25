@@ -11,3 +11,7 @@ output/
 *.sqlite-wal
 *.sqlite-shm
 *.db
+
+# MinerU Token（真 Token 不许进仓库；写入 ~/.ductpal/secrets/mineru.json）
+.secrets/
+.secrets

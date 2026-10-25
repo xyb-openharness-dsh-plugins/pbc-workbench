@@ -23,13 +23,32 @@
 import { existsSync, readFileSync } from 'node:fs'
 
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : '')
-const client = read('lib/client.js')
-const layout = read('lib/layout.js')
+
+/**
+ * 去掉注释再匹配。
+ *
+ * 为什么必须去注释：这些文件顶部都用中文写「为什么从标准分栏改成 customFrame」，
+ * 里面自然会出现 `customFrame=false` 这种字样。检查器若直接在原文上找
+ * `customFrame\s*[:=]\s*(...)`，就会抓到注释里的说明句，报
+ * "customFrame 不是 true/false 字面量：false）下宿主只把 businessWidth …"。
+ * 这条曾经真的红过一次——判据读的是散文而不是代码，属于判据写错了，
+ * 不是要求放宽（真正的校验第 4 条仍在，只是改成只看代码）。
+ */
+function stripComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((line) => line.replace(/(^|\s)\/\/.*$/, '$1'))
+    .join('\n')
+}
+
+const client = stripComments(read('lib/client.js'))
+const layout = stripComments(read('lib/layout.js'))
 const both = `${client}\n${layout}`
 const problems = []
 const notes = []
 
-if (!client) {
+if (!client.trim()) {
   console.log('跳过：还没有 lib/client.js（工作台外壳尚未接入宿主）')
   process.exit(0)
 }

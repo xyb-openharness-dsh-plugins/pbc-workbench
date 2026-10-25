@@ -17,6 +17,10 @@
     { id: 'trials', label: '临床研究', subs: [['search', '检索'], ['saved', '收藏'], ['sources', '来源说明']] },
   ]
 
+  /* 成人通用参考下限：只在报告没印下限时"借"来用，且结果必须标 approx。
+     数值取自常规成人参考区间（各家实验室略有差异，所以界面必须写明是通用的）。 */
+  const GENERIC_LOW = { PLT: 125, Hb: 115, WBC: 3.5, ANC: 1.8, ALB: 40 }
+
   const GRADE_CODES = {
     ALP: { kind: 'uln', cuts: [1, 3, 5, 20], note: '×ULN' },
     ALT: { kind: 'uln', cuts: [1, 3, 5, 20], note: '×ULN' },
@@ -35,7 +39,14 @@
   const $ = (s, r) => (r || document).querySelector(s)
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s))
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-  const num = (v) => (v == null || v === '' ? null : Number(v))
+  /* 文字型结果（`<5`、`阴性`、`未检出`）必须变成 null，不能变成 NaN：
+     NaN 一路传进分级会算出 `ratio NaN` 并被判成 0 级 —— 界面上就是一片"正常"，
+     而真实含义恰恰相反（工作人员把"低于检出下限"当成了正常值）。 */
+  const num = (v) => {
+    if (v == null || v === '') return null
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
   const pct = (v) => (v == null ? '—' : String(Math.round(v * 10) / 10))
 
   /* 分级：只做「对照」，不做诊断（缺上限 → needsUln，绝不用通用上限补） */
@@ -51,15 +62,17 @@
       for (const c of def.cuts) if (ratio > c) g++
       return { state: 'graded', grade: Math.min(g, 4), ratio }
     }
-    // 绝对阈值型：缺个人下限时用通用下限近似（标 approx）
-    const ll = item.refLow == null ? null : item.refLow
+    /* 绝对阈值型：缺个人下限时借成人通用下限近似，但必须标 approx 让界面写「按通用下限」。
+       口径是「下限可以借，上限不能借」—— 上限一项都不能补（补了就是把别人的正常值当你家的），
+       下限补了只是让"偏低"这件事能被看见，而且补的时候界面会说明。 */
+    const lower = item.refLow == null ? GENERIC_LOW[item.code] ?? null : item.refLow
     let g = 0
     if (def.dir === 'low') {
-      if (ll != null && v < ll) g = 1
+      if (lower != null && v < lower) g = 1
       for (const c of def.cuts) if (v < c) g++
     }
     const max = def.maxGrade || 4
-    return { state: 'graded', grade: Math.min(g, max), approx: ll == null }
+    return { state: 'graded', grade: Math.min(g, max), approx: item.refLow == null }
   }
 
   /* Fritsch–Carlson 单调三次插值：保证不越过相邻数据点（一图秀硬要求） */
@@ -589,9 +602,13 @@
       if (nd.getDate() < day) nd.setDate(0) // 月末夹取：1/31 + 1 月 = 2 月末
       return nd
     }
+    /* 本地日期 → 'YYYY-MM-DD' 必须手拼，不能用 toISOString()：
+       toISOString 走 UTC，东八区的本地零点会退成前一天（2024-03-20 + 6 个月
+       显示成 2024-09-19，用户按它去约复查会早一天）。 */
+    const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     return [6, 12].map((m) => {
       const d = addMonths(start, m)
-      const iso = d.toISOString().slice(0, 10)
+      const iso = isoOf(d)
       return { date: iso, label: `${m} 个月复查参考节点`, note: `起点 ${p.startedAt} + ${m} 个月；±30 天为显示带宽` }
     })
   }

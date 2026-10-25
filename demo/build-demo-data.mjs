@@ -18,6 +18,10 @@ import { fileURLToPath } from 'node:url'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..')
 
+/* 分节标题只有一份来源（lib/screening-titles.js）：播种、读模型、演示数据三处共用。
+   各写一份中文标题的话，改一处漏两处不会报错，只会看起来像两份不同的资料。 */
+import { screeningTitle } from '../lib/screening-titles.js'
+
 /** 固定种子线性同余：保证重跑一致。 */
 function lcg(seed) {
   let s = seed >>> 0
@@ -183,7 +187,7 @@ function buildProfileB() {
       { date: '2026-05-16', itch: 3, nightWorse: false, scratch: false, sleepBreaks: 0, fatigue: 2, note: '' },
     ],
     screening: [
-      { type: 'bone', date: '2026-02-11', result: '股骨颈 T 值 -2.6（报告原文）', detail: '骨科建议用药，尚未开始' },
+      { type: 'bone', date: '2026-02-11', result: '股骨颈 T 值 -2.6（报告原文）', detail: '骨科医生说要用骨松的药，尚未开始' },
       { type: 'thyroid', date: '2026-09-02', result: 'TSH 2.1 mIU/L（参考 0.35–4.94）', detail: '维持原剂量' },
       { type: 'endoscopy', date: '2024-11-20', result: '食管下段轻度静脉曲张（报告原文）', detail: '医生建议定期复查' },
       { type: 'vitamin', date: '2026-02-11', result: '25-OH 维生素 D 14 ng/mL', detail: '' },
@@ -224,7 +228,7 @@ function buildProfileB() {
         },
       },
       {
-        d: '2026-02-11', phase: '骨质疏松评估', text: '骨密度提示骨质疏松，骨科建议用药',
+        d: '2026-02-11', phase: '骨质疏松评估', text: '骨密度提示骨质疏松，骨科医生说要用骨松的药',
         detail: {
           regimen: { summary: '加左甲状腺素（另一科）', items: [['方案变更', '内分泌科加左甲状腺素 50 µg'], ['说明', '与肝病科分开开药']] },
           metrics: { summary: 'ALP 1.3–1.5×ULN，PLT 92', items: [['ALP', '178 U/L'], ['PLT', '92 10⁹/L']] },
@@ -257,6 +261,19 @@ export function buildDemoProfiles() {
     wbc: [4.1, 3.9, 4.0, 3.8, 4.0, 3.9], anc: [2.2, 2.1, 2.2, 2.0, 2.1, 2.1],
     cr: [70, 71, 69, 72, 70, 71],
   })
+  /* 补齐读模型会返回、而上面手写数据里想省掉的列。
+     形状由 **demo-data 决定**（26 号 demo-parity 契约）：读模型多返回一个字段、
+     演示数据少一个字段，两边就对不上，而界面上只会表现为某个角标忽然不见了。
+     这些字段原型当前不渲染，但它们是数据结构的属性（可见性 / 是否在服 / 解析状态），
+     真实档案里存在，演示数据里也必须存在。 */
+  for (const p of [A, B]) {
+    p.comorbidity = p.comorbidity.map((c) => ({ ...c, dept: c.dept ?? null, visibility: c.visibility ?? 'shared' }))
+    p.meds = p.meds.map((m) => ({ ...m, inUse: m.inUse ?? true }))
+    p.symptoms = p.symptoms.map((x) => ({ ...x, visibility: x.visibility ?? 'shared' }))
+    p.screening = p.screening.map((x) => ({ ...x, sectionTitle: x.sectionTitle ?? screeningTitle(x.type) }))
+    p.documents = p.documents.map((d) => ({ ...d, parseState: d.parseState ?? (d.parsed ? 'parsed' : 'unparsed') }))
+  }
+
   return [A, B]
 }
 
@@ -270,79 +287,32 @@ export function renderDemoModule(profiles) {
 }
 
 /* ------------------------------ 产物 2：SQLite ----------------------------- */
+/**
+ * 产物 2 用**真实 schema + 真实播种器**，不自己写一份 DDL。
+ *
+ * 早期版本在这里手抄了一份 12 张表的 DDL，结果是"演示库"和"真实库"长得不一样：
+ * 演示库里 `lab_items` 没有 `lab_name`、没有 `parse_jobs`，而读模型是照 schema 写的。
+ * 两边一旦分叉，`demo/demo-data.sqlite` 就只能拿来给原型看，不能用来验读模型 ——
+ * 而验读模型恰恰是这个产物唯一的价值。
+ *
+ * 现在：`schema/00*.sql` 按编号执行 → `seedDemo()` 灌数据。走的就是宿主启动时那条路。
+ */
 export async function buildDemoDatabase(file, profiles) {
   const { DatabaseSync } = await import('node:sqlite')
+  const { readdirSync, readFileSync } = await import('node:fs')
+  const { seedDemo } = await import('../dsh/demo.js')
   mkdirSync(dirname(file), { recursive: true })
+  /* 覆盖写：先删掉旧文件，否则旧表会留在库里（DROP 列表跟着 schema 变，不能靠它） */
+  try { (await import('node:fs')).rmSync(file, { force: true }) } catch { /* 首次构建 */ }
   const db = new DatabaseSync(file)
-  db.exec(`
-    DROP TABLE IF EXISTS subjects; DROP TABLE IF EXISTS lab_results; DROP TABLE IF EXISTS lab_items;
-    DROP TABLE IF EXISTS symptom_logs; DROP TABLE IF EXISTS medications; DROP TABLE IF EXISTS adherence;
-    DROP TABLE IF EXISTS regimen_changes; DROP TABLE IF EXISTS screening_records; DROP TABLE IF EXISTS questions;
-    DROP TABLE IF EXISTS trials; DROP TABLE IF EXISTS documents; DROP TABLE IF EXISTS pathway_phases;
-    CREATE TABLE subjects (profile_key TEXT PRIMARY KEY, label TEXT NOT NULL, name TEXT NOT NULL, age INTEGER,
-      sex TEXT, diagnosed_at TEXT NOT NULL, started_at TEXT, weight_kg REAL, antibody_json TEXT NOT NULL,
-      fibrosis_json TEXT NOT NULL, comorbidity_json TEXT);
-    CREATE TABLE lab_results (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, drawn_at TEXT NOT NULL, lab TEXT);
-    CREATE TABLE lab_items (id INTEGER PRIMARY KEY, result_id INTEGER NOT NULL, code TEXT NOT NULL, value REAL,
-      unit TEXT, ref_low REAL, ref_high REAL, ord INTEGER NOT NULL);
-    CREATE TABLE symptom_logs (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, logged_on TEXT NOT NULL,
-      itch_0_10 INTEGER, night_worse INTEGER, scratch INTEGER, sleep_breaks INTEGER, fatigue_1_3 INTEGER,
-      note TEXT);
-    CREATE TABLE medications (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, name TEXT NOT NULL,
-      dose_text TEXT, freq TEXT, start_date TEXT, approval TEXT NOT NULL DEFAULT 'unverified');
-    CREATE TABLE adherence (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, month TEXT NOT NULL, missed INTEGER NOT NULL);
-    CREATE TABLE regimen_changes (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, changed_on TEXT NOT NULL,
-      doctor_text TEXT NOT NULL, status TEXT NOT NULL);
-    CREATE TABLE screening_records (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, kind TEXT NOT NULL,
-      done_on TEXT NOT NULL, result_text TEXT, detail_text TEXT);
-    CREATE TABLE questions (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, qid TEXT NOT NULL, text TEXT NOT NULL, done INTEGER NOT NULL);
-    CREATE TABLE trials (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, tid TEXT NOT NULL, title TEXT NOT NULL,
-      source TEXT, phase TEXT, status_text TEXT, area TEXT);
-    CREATE TABLE documents (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, did TEXT NOT NULL, name TEXT NOT NULL,
-      doc_date TEXT, parsed INTEGER NOT NULL);
-    CREATE TABLE pathway_phases (id INTEGER PRIMARY KEY, profile_key TEXT NOT NULL, d TEXT NOT NULL,
-      phase TEXT NOT NULL, summary_text TEXT, detail_json TEXT NOT NULL, ord INTEGER NOT NULL);
-  `)
-  db.exec('BEGIN')
+  db.exec('PRAGMA foreign_keys = ON')
+  db.exec('PRAGMA journal_mode = WAL')
+  const dir = join(ROOT, 'schema')
+  for (const name of readdirSync(dir).filter((x) => /^\d{4}_[a-z0-9_]+\.sql$/.test(x)).sort()) {
+    db.exec(readFileSync(join(dir, name), 'utf8'))
+  }
   try {
-    const ins = {
-      subject: db.prepare('INSERT INTO subjects VALUES (?,?,?,?,?,?,?,?,?,?,?)'),
-      labResult: db.prepare('INSERT INTO lab_results (profile_key, drawn_at, lab) VALUES (?,?,?)'),
-      labItem: db.prepare('INSERT INTO lab_items (result_id, code, value, unit, ref_low, ref_high, ord) VALUES (?,?,?,?,?,?,?)'),
-      symptom: db.prepare('INSERT INTO symptom_logs (profile_key, logged_on, itch_0_10, night_worse, scratch, sleep_breaks, fatigue_1_3, note) VALUES (?,?,?,?,?,?,?,?)'),
-      med: db.prepare('INSERT INTO medications (profile_key, name, dose_text, freq, start_date, approval) VALUES (?,?,?,?,?,?)'),
-      adh: db.prepare('INSERT INTO adherence (profile_key, month, missed) VALUES (?,?,?)'),
-      change: db.prepare('INSERT INTO regimen_changes (profile_key, changed_on, doctor_text, status) VALUES (?,?,?,?)'),
-      screen: db.prepare('INSERT INTO screening_records (profile_key, kind, done_on, result_text, detail_text) VALUES (?,?,?,?,?)'),
-      question: db.prepare('INSERT INTO questions (profile_key, qid, text, done) VALUES (?,?,?,?)'),
-      trial: db.prepare('INSERT INTO trials (profile_key, tid, title, source, phase, status_text, area) VALUES (?,?,?,?,?,?,?)'),
-      doc: db.prepare('INSERT INTO documents (profile_key, did, name, doc_date, parsed) VALUES (?,?,?,?,?)'),
-      phase: db.prepare('INSERT INTO pathway_phases (profile_key, d, phase, summary_text, detail_json, ord) VALUES (?,?,?,?,?,?)'),
-    }
-    for (const p of profiles) {
-      ins.subject.run(p.key, p.label, p.name, p.age, p.sex, p.diagnosedAt, p.startedAt, p.weightKg,
-        JSON.stringify(p.antibodies), JSON.stringify(p.fibrosis), JSON.stringify(p.comorbidity))
-      for (const r of p.labs) {
-        const info = ins.labResult.run(p.key, r.date, r.items[0]?.lab ?? null)
-        const resultId = Number(info.lastInsertRowid)
-        r.items.forEach((it, i) => ins.labItem.run(resultId, it.code, it.value, it.unit, it.refLow, it.refHigh, i + 1))
-      }
-      for (const s of p.symptoms) {
-        ins.symptom.run(p.key, s.date, s.itch, s.nightWorse ? 1 : 0, s.scratch ? 1 : 0, s.sleepBreaks, s.fatigue, s.note ?? null)
-      }
-      for (const m of p.meds) ins.med.run(p.key, m.name, m.doseText, m.freq, m.startDate, m.approval)
-      for (const a of p.adherence) ins.adh.run(p.key, a.month, a.missed)
-      for (const c of p.regimenChanges) ins.change.run(p.key, c.date, c.text, c.status)
-      for (const s of p.screening) ins.screen.run(p.key, s.type, s.date, s.result, s.detail ?? null)
-      for (const q of p.questions) ins.question.run(p.key, q.id, q.text, q.done ? 1 : 0)
-      for (const t of p.trials) ins.trial.run(p.key, t.id, t.title, t.source, t.phase, t.status, t.area)
-      for (const d of p.documents) ins.doc.run(p.key, d.id, d.name, d.date, d.parsed ? 1 : 0)
-      p.pathway.forEach((ph, i) => ins.phase.run(p.key, ph.d, ph.phase, ph.text, JSON.stringify(ph.detail), i + 1))
-    }
-    db.exec('COMMIT')
-  } catch (err) {
-    db.exec('ROLLBACK')
-    throw err
+    seedDemo(db, profiles)
   } finally {
     db.close()
   }

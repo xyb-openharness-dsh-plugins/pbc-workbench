@@ -14,15 +14,18 @@
   "files": [
     "dsh",
     "lib",
+    "public",
+    "schema",
     "assets",
+    "demo/build-demo-data.mjs",
     "cordis.patch.yml",
     "README.md",
     "NOTICE.md"
   ],
   "scripts": {
-    "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs",
-    "check:host": "node scripts/check-host-contract.mjs",
-    "test": "node --test test/*.test.mjs",
+    "check": "npm run build-version && npm run build-public && npm run build-demo && node scripts/check-version.mjs && node scripts/check-syntax.mjs && node scripts/check-schema.mjs && node scripts/check-wording.mjs && node scripts/check-demo-columns.mjs && node scripts/build-client.mjs --check && node --disable-warning=ExperimentalWarning --test test/*.test.mjs && node scripts/check-host-contract.mjs && node scripts/check-workbench-package.mjs .",
+    "check-host": "node scripts/check-host-contract.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.mjs",
     "audit": "node scripts/check-conformance.mjs .",
     "release:check": "npm run check && npm run test && npm run audit",
     "pack:check": "npm pack --dry-run",
@@ -31,7 +34,19 @@
     "probe:page-view": "node scripts/probe-page-view.mjs",
     "demo:data": "node demo/build-demo-data.mjs",
     "probe:proto": "python3 scripts/probe-prototype.py",
-    "shots:readme": "python3 scripts/shoot-readme.py"
+    "shots:readme": "python3 scripts/shoot-readme.py",
+    "build-version": "node scripts/build-version.mjs",
+    "build-public": "node scripts/build-public.mjs",
+    "build-client": "node scripts/build-client.mjs",
+    "build-demo": "node demo/build-demo-data.mjs",
+    "check-version": "node scripts/check-version.mjs",
+    "check-syntax": "node scripts/check-syntax.mjs",
+    "check-schema": "node scripts/check-schema.mjs",
+    "check-wording": "node scripts/check-wording.mjs",
+    "check-demo-columns": "node scripts/check-demo-columns.mjs",
+    "start": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
+    "dev": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
+    "check-package": "node scripts/check-workbench-package.mjs ."
   },
   "dsh": {
     "bundle": {

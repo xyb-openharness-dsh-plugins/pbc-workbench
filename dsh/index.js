@@ -1,37 +1,107 @@
+/* 小管宝 DuctPal —— DSH Desktop 宿主插件入口。
+ *
+ * 四件事，按顺序：
+ *   1. 打开数据源（`config.root` 有值→用户资料库；没值→内存库 + 演示数据，只读演示）
+ *   2. 过宿主鉴权（`ctx.connection.requestRejection`，**不自己造一套登录**）
+ *   3. 把请求交给 `dsh/routes.js` 的 createApiHandler
+ *      —— 独立启动（scripts/dev-server.mjs）与宿主用**同一份**路由表：
+ *         本地能开的路径，装进 Desktop 也一定在。曾经两边各写一套，
+ *         结果是本地打开正常、装机后 404，而且报错看起来像"插件没加载"。
+ *   4. `ctx.effect` 的 dispose 里按顺序关库
+ */
 import Schema from '@deepseek-ai/schemastery'
 import { readFileSync } from 'node:fs'
+import { Workbench } from './workbench.js'
+import { API_PREFIX, createApiHandler } from './routes.js'
+import { servePublic } from './server.js'
 
 export const name = 'pbc-workbench-main'
 export const inject = ['webServer', 'connection']
 // root 由 cordis.patch.yml 的 config.root: !!js dshHomePath('pbc') 注入（用户资料目录）。
 // 声明了它，scripts/check-workbench-package.mjs 的 ⑤ 才会反过来要求 patch 必须有注入；
-// 两边必须同时存在，否则装机后每次重启都退回内存库（ATTR 0.2.1 回收）。
+// 两边必须同时存在，否则装机后每次重启都退回内存库。
 export const Config = Schema.object({
   root: Schema.string().description('用户资料目录（由宿主 dshHomePath 注入）'),
 })
+
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+
+/** 打开数据源。root 缺失不是错误——它是"还没选资料目录"的正常状态，退回只读演示。 */
+async function openDataSource(root) {
+  return root ? Workbench.open(root) : Workbench.open(null)
+}
 
 export function apply(ctx) {
   if (!ctx.webServer?.register) throw new Error('Desktop webServer.register is unavailable')
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact', path: '/api/pbc-workbench/health',
-    handler(req, res) {
-      const send = (status, body) => {
-        res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
-        res.end(JSON.stringify(body))
-      }
-      if (typeof ctx.connection?.requestRejection !== 'function') return send(503, { error: 'connection authentication capability unavailable' })
-      const rejection = ctx.connection.requestRejection(req)
-      if (rejection !== undefined) return send(rejection, { error: 'Authentication required' })
-      if (req.method !== 'GET') return send(405, { error: 'Method not allowed' })
-      send(200, {
-        ok: true,
-        version: manifest.version,
-        apiVersion: 'v1',
-        capabilities: ['health'],
-        // 只回布尔，不回路径：健康检查不进日志、不进截图
-        dataDirConfigured: Boolean(ctx.config?.root),
-      })
+
+  /* 异步打开：宿主不等我们，所以先把 handler 挂上，打不开就在 /health 里说原因，
+     其余接口统一 503 —— 不假装返回空数据，否则用户看到空档案会以为"数据丢了"。 */
+  let source = null
+  let failure = null
+  const ready = openDataSource(ctx.config?.root)
+    .then((wb) => { source = wb })
+    .catch((error) => {
+      failure = `资料库打不开：${error?.message ?? error}`
+      ctx.logger?.warn?.(failure)
+    })
+
+  const api = createApiHandler({
+    /* 传一个**稳定的代理对象**，不传 getter：路由表在 health 里直接读 source.isDemo()，
+       若这里抛错就会把 /health 也带崩——而 /health 恰恰是用来报告"为什么打不开"的。 */
+    source: {
+      get db() { return requireSource().db },
+      bootstrap: () => requireSource().bootstrap(),
+      profile: (key, opts) => requireSource().getProfile(key, opts),
+      saveExport: (key) => requireSource().saveExport(key),
+      isDemo: () => (source ? source.isDemo : null),
     },
-  }), 'pbc-workbench health')
+    version: manifest.version,
+    build: manifest.build ?? null,
+    serveUi: (req, res, urlPath) => void servePublic(req, res, urlPath),
+    get failure() { return failure },
+    /* 只回布尔，不回路径：路径会出现在 HTTP 响应里，谁抓到响应就知道你把资料放哪了。 */
+    dataDirConfigured: Boolean(ctx.config?.root),
+  })
+
+  /* 资料库是异步就绪的。每个请求现取，避免"启动时的 null 被闭包钉死"；
+     还没就绪就抛带 code 的错，由 routes.js 的 errorBody 映射成状态码。 */
+  function requireSource() {
+    if (!source) {
+      throw Object.assign(
+        new Error(failure ?? '资料库还在打开中，请稍后重试'),
+        { code: 'BOOTSTRAP_UNAVAILABLE' },
+      )
+    }
+    return source
+  }
+
+  function authorized(req, res) {
+    /* 鉴权交给宿主：没有 connection 能力就明确说不可用，不做"看起来放行了"的假动作。 */
+    if (typeof ctx.connection?.requestRejection === 'function') {
+      const rejection = ctx.connection.requestRejection(req)
+      if (rejection !== undefined) {
+        res.writeHead(rejection, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+        res.end(JSON.stringify({ error: 'AUTH_REQUIRED', message: '需要登录 DSH 才能访问本机资料' }))
+        return
+      }
+    }
+    return api(req, res)
+  }
+
+  /* 前缀注册：/api/pbc-workbench 下所有路径（含 /ui 静态）都走同一入口。
+     用 register 返回的 dispose 交给 ctx.effect，不要自己数着关。 */
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'prefix',
+    path: API_PREFIX,
+    handler: authorized,
+  }), 'pbc-workbench api')
+
+  ctx.effect(() => {
+    void ready
+    return () => {
+      /* 关库失败不该阻断卸载流程：宿主此刻可能已经在关了，抛出去会盖掉真正的原因。 */
+      try { source?.close?.() } catch { /* 见上 */ }
+      source = null
+    }
+  })
 }
