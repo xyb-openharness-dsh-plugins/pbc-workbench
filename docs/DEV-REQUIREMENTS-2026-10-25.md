@@ -96,3 +96,40 @@
 | D6 | **一图秀降为二级**（`labs/一图秀`） | PBC 指标同源，不值得占一级 | 提为一级（DIFF-MATRIX D1 需同步改） |
 | D7 | **不接指南页码层**，只做 CTCAE 对照 | 原件未取得，虚构页码比不做更糟 | 取得原件后按 25 号补 G1–G3 |
 | D8 | **9 一级 / 30 二级** | 家族区间 8–10 / 24–30；二级无 0 的线 | 见 DIFF-MATRIX §3 |
+
+## 六、M6 追补（2026-10-25，装机轮实测，每条带错误来源）
+
+> 这一节是 M9 回流的一部分：M6 装机时踩到的东西，凡是"下一个病种装机会再踩"的，都补进本文件，
+> 不是只补进 LESSONS 让人靠记忆。
+
+### 6.1 宿主接线面（dev 语境一条都罩不住）
+
+23. **宿主"不拒绝"可能返回 `null`，鉴权判定必须用真值判。**
+    来源：本仓 0.2.2 装机副本探针实测 —— 原实现 `if (rejection !== undefined) res.writeHead(rejection)`
+    在宿主返回 `null` 时把 `null` 当状态码，进程抛
+    `RangeError [ERR_HTTP_INVALID_STATUS_CODE]: Invalid status code: null`（`node:_http_server:358:11`），
+    **整条服务链熄火而不是 500**。正确写法 `if (rejection)`。
+    验收：`test/host-auth.test.mjs` ②③（`null` 与 `undefined` 都必须放行）。
+24. **宿主没给 `connection.requestRejection` 时必须 503，不许"跳过鉴权继续放行"。**
+    来源：同上探针 ① —— 宿主少给一个能力，本机资料就裸奔出去。原实现把这个分支写成"没有就跳过"，
+    本地与 dev 都看不出问题（dev-server 根本不经过这段）。
+    正确写法：503 + `{error:'AUTH_UNAVAILABLE', message:'宿主未提供鉴权能力…'}`。
+    验收：`test/host-auth.test.mjs` ①（断言 503 且**业务 handler 一次都没被调用**）。
+25. **鉴权逻辑要能单测，就得从插件入口拆出来。**
+    来源：`dsh/index.js` 顶部 `import Schema from '@deepseek-ai/schemastery'`，单测环境没有那份 peer
+    （`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'`），逻辑留在里面就一条都测不了。
+    落地：`dsh/auth.js` 导出 `createAuthorized({api, connection})`。
+26. **`health.build` 必须从 `lib/version.js` 取，不能从 `package.json` 取。**
+    来源：装机副本探针 ③ —— `package.json` 没有 build 字段，`health.build` 永远是 `null`，
+    界面上构建日期空白，用户看不出装的是哪天的。
+27. **装机目标 profile 是实测出来的，不是照着文档猜的。**
+    来源：starter 06 号那条 2026-10-18 的结论（`~/Library/Application Support/dsh-desktop/harness/profiles/web`）
+    在本机**不存在**；本机 Desktop app 进程行末是 `~/.dsh/profiles/desktop`。
+    判定法：`ps aux | grep "DeepSeek Harness"` 看进程参数里那个路径；再 `lsof -nP -iTCP:<GUI 端口>` 交叉印证。
+28. **联网 `pnpm install` 可能被无关的 git 依赖卡死，用 `--offline` 装本地 tgz。**
+    来源：本机 `corepack pnpm install` 去 `git ls-remote https://github.com/molly-ovo/dsh-workbuddy-oauth.git`
+    超时 75s（该依赖的 tarball 已在 lockfile 里钉住、`node_modules` 里也已存在）。
+    落地：`NODE_OPTIONS= corepack pnpm install --offline --no-frozen-lockfile`。
+29. **`install` 之后必须逐文件比 tgz 与安装副本。**
+    来源：06 号第 7 类（同版号重打包 pnpm 不重链）。落地：`tar -xzf tgz -C /tmp/x && diff -rq /tmp/x/package <副本>`，
+    输出必须为空；不为空就当失败，不往下跑探针。
