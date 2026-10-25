@@ -1,56 +1,82 @@
-# 数据主体—关系—表
+# 数据主体—关系—表 · PBC
 
-| 实体 | 稳定 ID | 主体/外键 | 核心字段/类型 | 约束/索引 | 来源/确认 | 生命周期 |
-| --- | --- | --- | --- | --- | --- | --- |
-| subject | ... | ... | ... | ... | ... | ... |
-| document | ... | subject | relative_path/hash/mime | ... | original | ... |
-| observation | ... | subject/metric_definition | time/value/unit | ... | candidate/confirmed | ... |
-| artifact | ... | task/snapshot | relative_path/hash/format | ... | template version | ... |
+> 冻结版见 `schema/0001_initial.sql` + `schema/freeze-contract.md`（sha256 已钉）。
+> 校验：`node scripts/check-schema.mjs`（应用全部迁移 → 比对表清单 → 断言无判读列 → 核 sha256）。
 
-实体图：...
-扩展策略：定义目录新增 vs 结构迁移的边界；核心关系不塞入任意 JSON。
-迁移 ledger/旧库 fixture/备份/事务/回滚兼容：...
-数据根选择、相对路径校验、公共数据和私人数据分离：...
-统一读模型与跨页一致性验收：...
+## 1. 实体—关系
 
-## 持久化与记忆选型（互动确认）
+```
+profiles (档案级, 1)
+ ├─ fibrosis_records       纤维化：检查方式 + 报告原文（方式不互算）
+ ├─ comorbidities          合并症（可 private）
+ ├─ documents              事实层①：原件（sha256 / 解析状态）
+ │   └─ parse_candidates   事实层②：候选（AI/MinerU 产出，pending→accepted/rejected）
+ ├─ lab_panels ─ lab_items 事实层④：指标（一次化验 = 1 panel + N item）
+ ├─ symptom_logs           表达面：痒/累（不落 grade）
+ ├─ medications / adherence_events
+ ├─ regimen_changes        换线：仅医生原话（无应答判定）
+ ├─ screening_sections / screening_records   并发症按系统分节
+ ├─ section_titles         分节标题（读模型直接取）
+ ├─ questions / todos      问题与待办（更正=新增版本；due 恒 NULL）
+ ├─ pathway_phases         折叠卡五块 detail（阶段与日期是列）
+ ├─ trial_bookmarks ── trial_records          试验（登记状态，未核实）
+ └─ export_snapshots       导出产物（含 data_cutoff）
+source_states               采集来源终态（coverage + completeness）
+migrations                  迁移 ledger（checksum）
+```
 
-等级 A/B/C/D 与理由：...
-预计规模/增长、常用查询、并发写入者、离线要求：...
-SQLite 或 JSON 的实际运行条件与备选方案：...
+## 2. 四契约落地
 
-| 数据类别 | 权威位置/格式 | 读写责任 | 来源/revision | 索引/失效/保留规则 |
+| 契约 | 落地方式 | 断言 |
+| --- | --- | --- |
+| ① 看法恒不为结论 | 无 `is_conclusion`；**全库无** diagnosis/risk_level/response/stage/grade 列 | `check-schema` 扫全部列 |
+| ② 缺值不造假 | 可选列显式 NULL；三态 `positive/negative/untested` | `antibody_*` 有 CHECK 约束 |
+| ③ 更正只新增版本 | `questions.superseded_by`；无 DELETE 语义 | 单测断言旧行仍在 |
+| ④ 事实四层不合并 | documents / parse_candidates / 记录表 / lab_items 四层分表 | 表清单本身 |
+
+**分级不落库**：`grade` 是派生值，读取时由 `dsh/ctcae.js` 按 CTCAE v5.0 现算（标准会升版，落库 = 把旧标准写成历史事实）。
+
+## 3. 关键列与陷阱
+
+| 列 | 为什么这样 | 陷阱 |
+| --- | --- | --- |
+| `lab_items.ref_low` / `ref_high` | ×ULN 必须用**这张单子**的上限 | 两列都可空；写入先挡 `null/undefined/''` 再 `Number()`（`Number(null)===0`） |
+| `lab_items.value_text` | 非数值结果（"阴性"） | `value_num` 必须保持 NULL，不许写 0 |
+| `medications.dose_text` | 患者抄录原文（含"×5 片/日"） | 不换算成 mg/kg |
+| `medications.in_use` | `using` 是保留字 | 禁写 `using` |
+| `todos.due` | 本仓不发提醒 | 恒 NULL |
+| `symptom_logs.*` | 表达面，无 CTCAE 分级 | `fatigue_1_3` CHECK 1–3 |
+| `section_titles.scope` | 一表多域（labs/symptoms/screening/…) | 同域内 `section_key` 唯一 |
+
+## 4. 持久化与选型
+
+- **等级 A（本机 SQLite）**：数据只落用户资料目录（`dshHomePath('pbc')`），不静默上传；卸载不删数据。
+- 规模：单用户，万级行；查询以"按档案 + 日期"为主（已建 4 个索引）。
+- 并发写入者：1（单机桌面应用）；WAL 模式。
+
+| 数据类别 | 权威位置 | 读写责任 | 来源/revision | 失效规则 |
 | --- | --- | --- | --- | --- |
-| 已确认业务事实 | ... | ... | ... | ... |
-| 文件与产物 | ... | ... | ... | ... |
-| 偏好/摘要/检索记忆（可选） | ... | ... | ... | ... |
-| 可重建内存缓存/派生索引 | ... | ... | ... | ... |
+| 已确认事实 | SQLite 记录表 | 服务端写入，需用户确认 | `source_kind` / `src_doc` | 永不自动失效 |
+| 原件 | 用户资料目录 `documents/` | 只增 | sha256 | 不自动删 |
+| 候选 | `parse_candidates` | 用户逐项裁决 | document_id | rejected 保留留痕 |
+| 派生值（分级/节奏） | 内存 | 读取时算 | 标准版本常量 | 标准升版即变 |
 
-同步：提交后更新、幂等键、重试、积压可见性：...
-检索：主体/工作区过滤、来源核对、过期与冲突处理：...
-纠正/删除：缓存与记忆失效、删除传播：...
-外部记忆的实际 API/版本/部署/发送范围；不可用时的本地路径：...
-性能证据：代表数据、查询延迟/启动、内存测量与目标：...
-确认人/日期、未决项及对应验收 ID：...
+## 5. 前端与业务流程变化矩阵
 
-## 前端与业务流程变化矩阵（建库前必填）
-
-领域事实/关系、工作流定义与实例、页面读模型/偏好边界：...
-稳定ID/revision、流程定义版本/已有实例、状态转换与跳过/重开/取消语义：...
-
-| 变化情境 | 不变的事实/关系 | 配置/投影/API变化 | 迁移/旧记录读取与恢复 | 验收证据 |
+| 变化情境 | 不变的事实/关系 | 改哪层 | 迁移 | 验收 |
 | --- | --- | --- | --- | --- |
-| 改导航/布局/同一事实多视图 | ... | ... | ... | ... |
-| 新字段/指标/可选记录类型 | ... | ... | ... | ... |
-| 步骤插入/跳过/重开/并行 | ... | ... | ... | ... |
-| 来源更正/删除/摘要与缓存失效 | ... | ... | ... | ... |
-| 旧数据库/旧API客户端升级 | ... | ... | ... | ... |
+| 改导航/布局 | 全部表 | 读模型 + 前端 | 无 | ui-parity 绿 |
+| 新增普通指标（如 IgM） | 表结构不变 | `LABELS` + `ctcae.js` 可选 | 无 | 单测覆盖 |
+| 新增分节 | `section_titles` 加行 | 读模型 | 无（数据，不是结构） | 分节标题断言 |
+| 步骤插入/跳过 | 流程在读模型里 | 读模型 | 无 | 路径表更新 |
+| 来源更正 | 记录表 | 新增版本行 | 无 | 旧版本仍可查 |
+| 候选→接受 | 候选表 + 记录表 | 服务端命令 | 无 | 拒收零副作用 |
+| 旧库升级 | 0001 不动 | 新增 000N | **必须** | 迁移幂等单测 |
 
-不把UI模拟数据当表，不为每个步骤复制事实；不通过无限JSON、重置库或无理由的全量事件溯源代替设计。详见docs/14-HTML-AND-DATA-CONTRACT.md。
+## 6. 未决项
 
-
-## UI/流程变化的承受能力（必填）
-
-领域实体/证据/主体/状态/版本是稳定核心；UI通过命令用例写入和版本化读模型读取。不能按Tab复制事实或把整页state当业务存储。列出：页面拆合/移位、流程先后改变、新增普通指标、来源更正、候选→接受、未知字段/枚举、隐私派生与快照失效时需要改哪层、是否迁移、兼容/恢复方式。
-
-HTML确认前是候选模型/模拟adapter，确认对应模块后复核并落实生产schema/API；仅布局/字段顺序变化不能迫使用户清库。JSON扩展有类型/schema/version/上限，核心关系保留外键与约束；写入有revision/幂等/事务。记录真实迁移/并发/故障证据，未执行标未验证。
+| # | 未决 | 影响 | 何时定 |
+| --- | --- | --- | --- |
+| U1 | 是否需要"照护者代记"字段（`recorded_by`） | 双主体范围 | 拿到访谈后（G1 外） |
+| U2 | 导出格式是否要 PDF | `export_snapshots.format` 已枚举 | M5（先 txt/md） |
+| U3 | 试验结果池是否全局共享 | `trial_records.profile_key` 可空 | M4 采集后 |
