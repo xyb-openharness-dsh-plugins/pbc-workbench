@@ -544,8 +544,13 @@
           ${list.map((s) => {
             const lab = profile().labs.find((r) => r.date === s.date)
             const alp = lab ? lab.items.find((i) => i.code === 'ALP') : null
+            /* 没记的字段写"未记"，不能直接插值：`null` 会原样打出来变成「痒 null/10」，
+               患者会以为记录坏了；而「0 分」与「没记」在复诊回顾里是两件事，不能都显示成 0。 */
+            const itchTxt = s.itch == null ? '痒 未记' : `痒 ${s.itch}/10`
+            const fatTxt = s.fatigue == null ? '累 未记' : `累 ${s.fatigue}/3`
+            const sleepTxt = s.sleepBreaks == null ? '' : ` · 睡被打断 ${s.sleepBreaks} 次`
             return `<li><span class="time">${esc(s.date)}</span><span>
-              <b>痒 ${s.itch}/10 · 累 ${s.fatigue}/3</b>${s.nightWorse ? ' · 夜间重' : ''}${s.scratch ? ' · 抓破' : ''} · 睡被打断 ${s.sleepBreaks} 次
+              <b>${itchTxt} · ${fatTxt}</b>${s.nightWorse ? ' · 夜间重' : ''}${s.scratch ? ' · 抓破' : ''}${sleepTxt}
               ${s.note ? `<br><span class="muted">${esc(s.note)}</span>` : ''}
               <br><span class="muted">同日指标：${alp ? `ALP ${alp.value} U/L（${alp.refHigh ? pct(alp.value / alp.refHigh) + '×ULN' : '无上限'}）` : '当天没有化验'}</span>
             </span></li>`

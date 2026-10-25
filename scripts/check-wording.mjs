@@ -34,15 +34,25 @@ const RULES = [
   { id: 'prognosis-claim', re: /预后\s*(良好|较好|不错|较差|很差)/g },
   { id: 'cure-rate', re: /治愈率|生存期\s*(还有|不足|大概)/g },
   { id: 'diagnose-claim', re: /(确诊|诊断)\s*为\s*(癌|肿瘤|恶性|原发性胆汁性)/g },
-  /* PBC 专属：替患者判"应答 / 未应答"。医生才做这个判断，本仓只画线不判。 */
-  { id: 'response-verdict', re: /(你已经|你属于|判定为|应判为)\s*(完全应答|部分应答|应答不佳|未应答)/g },
+  /* PBC 专属：替患者判"应答 / 未应答"。医生才做这个判断，本仓只画线不判。
+     判据不能带谓语前缀——第一版要求「你已经|判定为…」才命中，于是数据层里裸的
+     「档案 A · 部分应答」一路逃检（它经读模型直出界面，还成了导出文件标题首行）。
+     结论词本身出现在**任何字段值**里都算越界，不管前面有没有主语；
+     真正的否定语境（"不判应答"）由 NEGATION 放行，所以不误伤。 */
+  { id: 'response-verdict', re: /(完全应答|部分应答|应答不佳|未应答|生化应答良好|应答充分)/g },
   /* PBC 专属：自算预后评分（GLOBE / UK-PBC）。分数要输入未采集的变量，算出来是编的。 */
   { id: 'score-self-calc', re: /(计算|算出|估算)\s*(GLOBE|UK-?PBC)\s*(分值|评分)/gi },
   /* PBC 专属：把痒/累归因给某个机制。病因解释是医生的活，本仓只记录强度与时间。 */
   { id: 'cause-claim', re: /(你的瘙痒|你的乏力)\s*(是|来自|因为)\s*(胆汁淤积|胆酸|肝)/g },
 ]
 
+/* 近邻否定：命中词前面的紧邻字词（12 字符窗口）。 */
 const NEGATION = /[不勿禁别]$|不构成|不代表|不做|不提供|不作为|不替你/
+/* 句内否定：**整行前半段**出现这些词，说明这句在讲"不许做什么"。
+   为什么需要它：「不要替我判定"应答/未应答"」这类话里，否定词离命中词有十几个字，
+   12 字符窗口抓不到，于是把免责声明本身报成越界。放宽的是**语境判定**，
+   不是词表——真写了「档案 A · 部分应答」照样红（那一行前半段没有否定词）。 */
+const NEGATION_WIDE = /不构成|不代表|不做|不提供|不作为|不替你|不判|不写|不算|不推算|不要/
 
 function walk(dir) {
   const out = []
@@ -75,6 +85,7 @@ for (const file of files) {
       while ((m = rule.re.exec(line)) !== null) {
         const before = line.slice(Math.max(0, m.index - 12), m.index)
         if (NEGATION.test(before)) continue
+        if (NEGATION_WIDE.test(line.slice(0, m.index))) continue
         hits.push({ file: relative(root, file), line: i + 1, rule: rule.id, text: m[0].trim() })
       }
     }

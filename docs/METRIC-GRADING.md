@@ -1,14 +1,19 @@
 # 指标分级口径 · PBC
 
 > 依据 starter `docs/23-METRIC-GRADING-AND-ALERTS.md`。**分级是"对照"不是诊断**；
-> 本仓唯一分级标准 = CTCAE v5.0（`assets/reference/ctcae/CTCAE_v5.0_Quick_Reference_5x7.pdf`），阈值表只存在于 `dsh/ctcae.js` 一份。
+> 本仓唯一分级标准 = CTCAE v5.0（`assets/reference/ctcae/CTCAE_v5.0_Quick_Reference_5x7.pdf`）。
+
+**阈值表的位置（2026-10-25 独立评审纠正）**：只存在于 `public/app.js` 的 `GRADE_CODES` / `GENERIC_LOW`
+（源码视图 `prototypes/v0.2/app.js`）**一份**，由 `test/ctcae.test.mjs` 从该文件文本抠出来跑。
+本文档早先写的是 `dsh/ctcae.js`——**那个文件不存在**，后端目前没有任何分级能力。
+若将来导出/摘要需要在服务端分级，必须先真的建一份 `dsh/ctcae.js` 并让前端从它取，不能各写一份。
 
 ## 1. 启用清单（本癌种）
 
 | 指标 | 类型 | 启用 | 理由 |
 | --- | --- | --- | --- |
 | ALP | ×ULN | ✅ | PBC 的核心生化项；分级必须用该化验单自带上限 |
-| GGT | ×ULN | ✅ | 与 ALP 同源，胆汁淤积的并列项 |
+| GGT | — | ⛔ **不启用**（2026-10-25 纠正） | 本仓 `GRADE_CODES` **没有 GGT 的档位**：CTCAE 的 GGT 分级界限不是统一的 ×ULN 倍数，硬套会给出错级。界面走 `gradeOf()` 的兜底分支显示「该项在 CTCAE 里没有可用阈值（如 GGT）」。本文档早先标「✅ 启用」与实现相反。 |
 | ALT / AST | ×ULN | ✅ | 合并肝细胞损伤时并列 |
 | 总胆红素 | ×ULN | ✅ | 疾病进展与预后的关键项（只对照，不解释） |
 | 白蛋白 | 绝对（g/L） | ✅ | 肝合成功能；CTCAE 有数值界限 |
@@ -24,7 +29,7 @@
 | 类型 | 规则 |
 | --- | --- |
 | **绝对阈值型**（WBC/ANC/Hb/PLT/白蛋白） | 标准给数值界限；缺个人参考值时可用成人通用下限**近似**，结果带 `approx: true`，界面写「按通用下限」 |
-| **×ULN 型**（ALP/GGT/ALT/AST/TBil/肌酐） | **必须用这次化验单自带的 `ref_high`**；没有就返回 `needsUln` + 虚线徽章「需参考上限」，**绝不用通用上限凑倍数** |
+| **×ULN 型**（ALP/ALT/AST/TBil/肌酐；GGT 虽同属此型但本仓无档位，见 §1） | **必须用这次化验单自带的 `ref_high`**；没有就返回 `needsUln` + 虚线徽章「需参考上限」，**绝不用通用上限凑倍数** |
 
 一句话记法：**下限可以借，上限不能借。**
 

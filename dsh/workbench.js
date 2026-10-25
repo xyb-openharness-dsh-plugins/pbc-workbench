@@ -16,6 +16,7 @@ import { assertWorkspacePath } from './server.js'
 import { close, migrate, openDatabase } from './store.js'
 import { bootstrap as readBootstrap, getProfile as readProfile, listProfiles } from './readmodels.js'
 import { seedDemo, hasDemoData, DB_FILE } from './demo.js'
+import { addSymptomLog, removeSymptomLog } from './writes.js'
 import { APP_INFO } from '../lib/version.js'
 
 export class Workbench {
@@ -83,17 +84,30 @@ export class Workbench {
       throw error
     }
     /* 延迟 import：导出模块只在真的导出时才加载，插件启动不背这个成本。 */
-    return import('./export.js').then(({ renderPrepMarkdown, exportFilename, hasPrivateContent }) => {
-      const md = renderPrepMarkdown(profile, {
-        version: this.version,
-        excludedPrivate: hasPrivateContent(profile),
-      })
+    return import('./export.js').then(({ renderPrepMarkdown, exportFilename }) => {
+      /* 私密过滤在渲染器内部完成；这里取全量的唯一原因是让它能算出"有东西被排除"。 */
+      const md = renderPrepMarkdown(profile, { version: this.version })
       const dir = join(this.workspace, 'exports')
       mkdirSync(dir, { recursive: true })
       const file = join(dir, exportFilename(profile))
       writeFileSync(file, md, 'utf8')
       return { ok: true, file, bytes: Buffer.byteLength(md, 'utf8') }
     })
+  }
+
+  /**
+   * 记一条痒/累。**演示模式（内存库）也允许写**——它不落盘，但至少让患者当场看到
+   * "记下来了"这条链路是通的；真正的持久化要有资料目录。是否落盘由调用方按
+   * `this.isDemo` 决定要不要提示，写入本身不该因为演示模式就 404。
+   */
+  addSymptom(input) {
+    const saved = addSymptomLog(this.db, { ...input, profileKey: input?.profileKey })
+    return { ...saved, persisted: !this.isDemo }
+  }
+
+  /** 删掉记错的那一条。 */
+  removeSymptom(id) {
+    return removeSymptomLog(this.db, id)
   }
 
   close() {

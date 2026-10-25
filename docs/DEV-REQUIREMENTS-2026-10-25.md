@@ -133,3 +133,61 @@
 29. **`install` 之后必须逐文件比 tgz 与安装副本。**
     来源：06 号第 7 类（同版号重打包 pnpm 不重链）。落地：`tar -xzf tgz -C /tmp/x && diff -rq /tmp/x/package <副本>`，
     输出必须为空；不为空就当失败，不往下跑探针。
+
+## 七、M2 独立评审翻案追补（2026-10-25，每条带评审原话与验收）
+
+> 独立评审（与开发不同上下文）推翻 3 条 P0。**这一节的价值在于：这三条都不是"没写文档"，
+> 而是"文档立了红线、代码没做到、测试还给了绿灯"。** 所以每条都同时补了"代码"和"能红的测试"。
+
+30. **"红线写在注释里"不等于"红线被执行"——过滤必须在渲染器内部，不能靠调用方传参。**
+    来源：`dsh/export.js:4` 注释立了"私密分节不进导出"，但 `:187/:220` 只按时间窗过滤，
+    没有任何 `visibility` 条件；`routes.js:157` 与 `workbench.js:79` 还都传了 `includePrivate: true`。
+    实测（真库 + 真端口 + `GET /export/A.md`）：`LEAK symptom note in export: true`、
+    `LEAK regimen text in export: true`，而同一份文件里印着"本人标记为私密的记录…本文件不包含"。
+    落地：`renderPrepMarkdown` 内部 `const shared = (list) => list.filter((r) => r.visibility !== 'private')`，
+    **删掉 `excludedPrivate` 选项**（是否写排除声明也由渲染器自己算）——调用方传什么都不影响。
+    验收：`test/export-private.test.mjs` ①②③④（渲染器层 + HTTP 出口 + 落盘出口，正向反向双断言）。
+31. **断言素材必须来自测试自己造的数据，不能取自演示数据——否则循环空转、断言恒真。**
+    来源：`test/server.test.mjs:100-107` 的"私密不进导出"用 `full.symptoms.filter(s => s.visibility === 'private')`
+    取素材，而 `demo/build-demo-data.mjs` 全文件没有一处 `'private'`（`grep -n private` 零命中）→
+    `privNotes` 是空数组，循环体一次都没跑。同文件 `:80` `assert.ok(priv >= 0)` 也是恒真式。
+    落地：新测试直接 `INSERT ... visibility='private'` 造数据，并在断言前先验"库层真的读到了私密行"
+    （前提断言），再验"导出里没有它"；同时验"共享内容必须在"，防"全过滤"式假绿。
+    验收：反向对照实跑过 —— 把 `shared()` 改成不过滤，四条红三条；恢复后全绿。
+32. **判读词出现在**任何字段值**里都算越界，检查器不能要求谓语前缀。**
+    来源：`demo/build-demo-data.mjs:82` `label: '档案 A · 部分应答'` 经 `readmodels:207` 直出界面、
+    经 `export.js:109` 成为患者交给医生的文件首行（实测 `# 复诊准备 · 档案 A · 部分应答（虚构患者甲）`）；
+    而 `check-wording.mjs:38` 的正则是 `/(你已经|你属于|判定为|应判为)\s*(完全应答|…)/`，
+    裸 label 永远不匹配 → `npm run check` 报"0 处越界"是假绿。
+    落地：规则改为 `/（完全应答|部分应答|应答不佳|未应答|…)/` + 句内否定放行
+    （`NEGATION_WIDE`：整行前半段出现"不判/不写/不构成/不要"等才放行，防误伤免责句）。
+    验收：反向对照 —— 把 label 改回「部分应答」，检查器立刻报 `demo/build-demo-data.mjs:85 [response-verdict]`。
+33. **"能读"不等于"能记"——闭环的写入半环必须有真路由、真落盘、真测试。**
+    来源：评审实测 `public/app.js` 全文只有 1 个 `fetch(`（`:31` `/bootstrap`），无任何 POST/PUT/DELETE；
+    `dsh/routes.js` 五个路由一律 `if (req.method !== 'GET') …405`；`dsh/workbench.js` 只有 5 个方法、
+    没有症状写入；前端保存把日期写死 `'2026-10-25'` 塞进 `state.localSymptoms`，
+    然后 `toast('已记下这一次（演示：仅本页内存，不落库）')`。患者记一次痒刷新即丢。
+    落地：`dsh/writes.js`（`ValidationError` + `addSymptomLog` + `removeSymptomLog` + `assertIsoDate`）
+    → `Workbench.addSymptom/removeSymptom` → `POST /api/pbc-workbench/symptoms`（201）
+    / `DELETE /symptoms/:id`（200/404）→ `createHandler` 与 `dsh/index.js` 的 source 代理都接上
+    → 前端改 `await fetch(apiUrl('/symptoms'))` 并 `reloadProfile()` 重取。
+    验收：`test/symptom-write.test.mjs` 7 条 + `probe-dev.py` A10（点保存后 bootstrap 症状条数必须 +1，
+    实测 `{"before": 7, "after": 8}`）。
+34. **"没记"必须显示成"未记"，不能直接插值 `null`。**
+    来源：补了写入通路之后，探针发现记录页出现「痒 null/10 · 累 null/3 · 睡被打断 null 次」——
+    原型 `app.js:548` 直接 `${s.itch}` 插值。`0 分` 与 `没记` 在复诊回顾里是两件事。
+    落地：原型改为 `s.itch == null ? '痒 未记' : …`（原型是视觉基准，改原型后开发版自动同步）。
+35. **定点替换不命中是静默空转——必须在产物层验指纹，不能只验"产物≠原文"。**
+    来源：`scripts/build-public.mjs` 把 `todayIso` 插到 `const esc = …` 处，锚点写成 `function esc(s) {`
+    （实际是 `const esc = (s) =>`）→ 替换静默不生效，`public/app.js` 里 `todayIso is not defined`，
+    整页白屏；而"产物≠原文"那条断言照样通过（因为别的替换命中了）。
+    第二次修的时候又把 `esc` 的定义整段吃掉，运行时 `esc is not defined`。
+    落地：`FINGERPRINTS` 11 条（每处替换必须在产物里留下可 grep 的痕迹）+ `FORBIDDEN` 3 条
+    （自建聊天框模拟回复 / 内存假保存 / 写死的今天，出现即构建失败）。
+    验收：反向对照 —— 故意把锚点改回错的，构建立刻报
+    `public/app.js 缺少这些替换痕迹：本机今天、保存后重取档案——原型锚点变了`。
+36. **往 `public/app.js` 插函数要挑位置：常量块边界是"到下一个 `\n  }`"，插一个带 `}` 的函数会推后边界。**
+    来源：把 `todayIso/reloadProfile` 插在 `const esc` 之前，`test/ui-parity.test.mjs` 的 `block()` 取
+    `LABELS` 常量块时把新函数也圈进去 → "常量块 LABELS 与原型不一致"。
+    落地：改插在 `/* ------ 启动 ------ */` 标记之前（函数声明会提升，位置不影响语义）。
+    验收：`test/ui-parity.test.mjs` ③ 恢复绿；新增函数必须在 `EXTRA_ALLOWED` 里登记并写清属于哪一类。

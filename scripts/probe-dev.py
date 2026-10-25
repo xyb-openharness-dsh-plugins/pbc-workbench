@@ -21,6 +21,8 @@
   A7 三档宽度无横向溢出（1280/1024/760）
   A8 页面报错 / console error / 失败请求均为 0
   A9 静态资源全部 200（漏剥前缀的头号症状就是这里 404）
+  A10 **记一次痒真的写进库**（点保存 → 再吞一次 bootstrap → 症状条数 +1）。
+      这是闭环的"记录"半环：独立评审实测出前端只写内存、刷新即丢。
 """
 import json
 import os
@@ -209,6 +211,44 @@ def main() -> int:
                 if page.evaluate("() => window.__autoSent") is True:
                     problems.append("A6 草稿被自动发送了（必须等用户按回车）")
 
+            # A10 记一次痒：真的落库（不是 toast 说"仅本页内存"）
+            symptom_write = None
+            #     判据取 bootstrap 里的症状条数：点之前吞一次、点之后再吞一次，必须 +1。
+            page.click('#sidenav [data-view="symptoms"]')
+            page.wait_for_timeout(60)
+            if page.query_selector('#subtabs [data-sub="itch"]'):
+                page.click('#subtabs [data-sub="itch"]')
+            page.wait_for_timeout(150)
+            # 页面的 apiUrl/state 都在 IIFE 里，探针拿不到；直接按 URL 自己拼接口地址。
+            fetch_bootstrap = """async () => {
+                  const base = location.pathname.replace(/\\/ui\\/.*$/, '');
+                  const r = await fetch(base + '/bootstrap');
+                  const d = await r.json();
+                  const key = window.__probeKey;
+                  return d.profiles.find((p) => p.key === key).symptoms.length;
+                }"""
+            page.evaluate("() => { window.__probeKey = document.querySelector('.profile-btn') ? null : null }")
+            # 档案 key 从 bootstrap 里第一条取（页面默认选第一条）
+            page.evaluate("""async () => {
+                  const base = location.pathname.replace(/\\/ui\\/.*$/, '');
+                  const d = await (await fetch(base + '/bootstrap')).json();
+                  window.__probeKey = d.profiles[0].key;
+                }""")
+            before_sym = page.evaluate(fetch_bootstrap)
+            if not page.query_selector('#save-itch'):
+                problems.append("A10 找不到「保存这一次」按钮")
+            else:
+                page.fill('#itch', '8')
+                page.fill('#note', '探针记的一条-不要留下来')
+                page.click('#save-itch')
+                page.wait_for_timeout(600)
+                after_sym = page.evaluate(fetch_bootstrap)
+                symptom_write = {"before": before_sym, "after": after_sym}
+                if after_sym != before_sym + 1:
+                    problems.append(
+                        f"A10 记一次痒后症状条数没变（{before_sym} → {after_sym}）：保存还是只写内存"
+                    )
+
             # A7 三档宽度无横向溢出
             overflow = {}
             for w in (1280, 1024, 760):
@@ -250,6 +290,7 @@ def main() -> int:
                 "consoleErrors": console_errors,
                 "failedRequests": failed,
                 "non200": non200,
+                "symptomWrite": symptom_write,
                 "health": health,
                 "ok": not problems,
                 "problems": problems,

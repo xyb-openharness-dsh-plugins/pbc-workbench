@@ -33,8 +33,18 @@ const PUB_DEMO = read('public/demo-data.js')
 const PROTO_HTML = read('prototypes/v0.2/index.html')
 const PUB_HTML = read('public/index.html')
 
-/* 开发版允许新增的函数：全部与"数据从哪来"有关，不碰任何视图逻辑。 */
-const EXTRA_ALLOWED = new Set(['apiBase', 'apiUrl', 'loadBootstrap', 'applyData', 'showSourceBanner', 'renderAgentSlot'])
+/* 开发版允许新增的函数：全部与"数据从哪来 / 怎么回去"有关，不碰任何视图逻辑。
+ * 每加一个都要能说清它属于哪一类——这条白名单是防"开发版偷偷长出自己的界面逻辑"。
+ *
+ * todayIso / reloadProfile 属第①类（取数据）：
+ * - todayIso：保存记录时要一个**本机今天**的日期。原型写死 `'2026-10-25'`，
+ *   开发版不能写死（患者今天记的必须落到今天），而 `toISOString()` 是 UTC，东八区会退一天。
+ * - reloadProfile：保存成功后重取档案，让界面上的数字来自库里而不是内存。
+ */
+const EXTRA_ALLOWED = new Set([
+  'apiBase', 'apiUrl', 'loadBootstrap', 'applyData', 'todayIso', 'reloadProfile',
+  'showSourceBanner', 'renderAgentSlot',
+])
 
 function functions(src) {
   return [...src.matchAll(/^ {2}(?:async )?function ([A-Za-z0-9_$]+)/gm)].map((m) => m[1])

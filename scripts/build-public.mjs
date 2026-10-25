@@ -50,6 +50,11 @@ function renderIndex(source, version) {
  *   3) boot() 里先 await 数据再 render
  * 其它函数（30 个视图、gradeOf、smoothPath、oneChart、cadenceNodes……）必须逐字符相同。
  */
+/* 定点替换的**命中台账**：`String.replace(anchor, next)` 不命中时是静默空转——原型改一句
+   措辞，这里就悄悄换不回来，产物看着"构建成功"，运行时才报 `todayIso is not defined`。
+   实测踩过一次（锚点写成 `function esc(s) {`，实际是 `const esc = (s) =>`）。
+   靠逐处记账脆（替换写法有数组/模板串多种），改在**产物层**验：每处替换都必须在
+   产物里留下可 grep 的指纹，少一条就构建失败。 */
 function renderApp(source, { version, apiPrefix }) {
   const out = source
 
@@ -210,7 +215,97 @@ function renderApp(source, { version, apiPrefix }) {
     ].join('\n'),
   )
 
-  /* ⑥ boot 里在 render() 之后挂上原生会话挂载位（render 会重绘视图但不碰 #agent-body，
+  /* ⑥ 症状保存：原型只写内存（`toast('…仅本页内存，不落库')`），开发版必须真的落库。
+     替换掉整段 `if (saveItch) saveItch.addEventListener(...)` —— 它写死了日期、
+     写 state.localSymptoms、还自承不落库。开发版改成 POST /symptoms 后重取档案。 */
+  .replace(
+    [
+      `    const saveItch = $('#save-itch')`,
+      `    if (saveItch) saveItch.addEventListener('click', () => {`,
+      `      const s = {`,
+      `        date: '2026-10-25',`,
+      `        itch: Number($('#itch').value),`,
+      `        nightWorse: $('#night').checked,`,
+      `        scratch: $('#scratch').checked,`,
+      `        sleepBreaks: Number(state.draft.sleepBreaks),`,
+      `        fatigue: state.draft.fatigue,`,
+      `        note: $('#note').value,`,
+      `      }`,
+      `      state.localSymptoms.unshift(s)`,
+      `      toast('已记下这一次（演示：仅本页内存，不落库）')`,
+      `      state.view = 'symptoms'; state.sub = 'log'; render()`,
+      `    })`,
+    ].join('\n'),
+    [
+      `    const saveItch = $('#save-itch')`,
+      `    if (saveItch) saveItch.addEventListener('click', async () => {`,
+      `      /* 开发版：真的写库。日期取**本机今天**（不写死），因为这条记录要和化验单`,
+      `         并排给医生看，日期错了比没有更糟。 */`,
+      `      const s = {`,
+      `        profileKey: state.profileKey,`,
+      `        date: todayIso(),`,
+      `        itch: Number($('#itch').value),`,
+      `        nightWorse: $('#night').checked,`,
+      `        scratch: $('#scratch').checked,`,
+      `        fatigue: state.draft.fatigue,`,
+      `        note: $('#note').value,`,
+      `      }`,
+      `      saveItch.disabled = true`,
+      `      try {`,
+      `        const res = await fetch(apiUrl('/symptoms'), {`,
+      `          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s),`,
+      `        })`,
+      `        const data = await res.json()`,
+      `        if (!res.ok) throw new Error(data.message || '保存失败')`,
+      `        toast(data.saved && data.saved.persisted === false`,
+      `          ? '已记下（演示模式：这次不会落到你自己的资料库）'`,
+      `          : '已记下这一次')`,
+      `        state.draft.note = ''`,
+      `        await reloadProfile()`,
+      `        state.view = 'symptoms'; state.sub = 'log'; render()`,
+      `      } catch (error) {`,
+      `        toast('没能保存：' + (error.message || '请稍后重试'))`,
+      `      } finally {`,
+      `        saveItch.disabled = false`,
+      `      }`,
+      `    })`,
+    ].join('\n'),
+  )
+
+  /* ⑦ 本机今天（YYYY-MM-DD）。**不用 toISOString()**：那是 UTC，东八区本地零点会退一天，
+     用户记的"今天"就变成了昨天。手拼本地年月日。 */
+  /* 锚点必须是「启动」标记而不是 esc：`test/ui-parity.test.mjs` 用
+     "从 `const X = ` 到下一个 `\n  }`" 取常量块并逐字节比对，在这里插一个带
+     `  }` 结尾的函数会把 LABELS 的边界推后，常量块校验当场红（实测踩过）。
+     插在「启动」之前不影响任何常量块的边界，而且函数声明会提升，位置随便。 */
+  .replace(
+    `  /* ------------------------------ 启动 ------------------------------ */`,
+    [
+      `  /* 本机今天的 YYYY-MM-DD。不用 toISOString().slice(0,10)：那是 UTC 日期，`,
+      `     东八区凌晨会退成前一天，患者记的"今天"就落到昨天去了。 */`,
+      `  function todayIso() {`,
+      `    const d = new Date()`,
+      `    const p = (n) => String(n).padStart(2, '0')`,
+      `    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())`,
+      `  }`,
+      ``,
+      `  /* 保存后重取档案：界面上的数字必须来自库里，不能只改内存。 */`,
+      `  async function reloadProfile() {`,
+      `    try {`,
+      `      const res = await fetch(apiUrl('/profile/' + encodeURIComponent(state.profileKey) + '?private=1'))`,
+      `      if (!res.ok) return`,
+      `      const data = await res.json()`,
+      `      if (!data.profile) return`,
+      `      const at = DEMO.profiles.findIndex((x) => x.key === data.profile.key)`,
+      `      if (at >= 0) DEMO.profiles[at] = data.profile`,
+      `    } catch { /* 重取失败不影响"已保存"这个事实，页面保持旧数据 */ }`,
+      `  }`,
+      ``,
+      `  /* ------------------------------ 启动 ------------------------------ */`,
+    ].join('\n'),
+  )
+
+  /* ⑧ boot 里在 render() 之后挂上原生会话挂载位（render 会重绘视图但不碰 #agent-body，
      所以这一步只需要在首帧做一次；放在 render 之后是为了 DATA_SOURCE 已确定）。 */
   .replace(
     `    bindShell()\n    applyAgentWidth()\n    render()`,
@@ -241,11 +336,43 @@ async function main() {
   const app = renderApp(readFileSync(join(SRC, 'app.js'), 'utf8'), { version, apiPrefix: API_PREFIX })
   targets.push({ name: 'app.js', content: Buffer.from(app) })
 
-  /* 定点替换必须真的发生过：原型改了措辞而这里没跟上时，替换会静默不生效，
-     版号就永远是旧的。逐个断言"替换后与原文不同"，比事后看截图可靠。 */
+  /* 定点替换必须真的发生过。只验"产物≠原文"不够——那只能证明**至少一处**命中，
+     而实测踩的正是"大部分命中、一处静默空转"（`todayIso is not defined`）。
+     这里逐条验产物指纹：少一条就构建失败，并且指出是哪一处没跟上。 */
   const originalApp = readFileSync(join(SRC, 'app.js'), 'utf8')
   if (originalApp === app.toString()) {
     throw new Error('app.js 的定点替换一处都没生效：原型的锚点文字变了，先同步 scripts/build-public.mjs')
+  }
+  const appText = app.toString()
+  const FINGERPRINTS = [
+    ['版本常量', `const VERSION = 'v${version}'`],
+    ['数据来源三态', 'DATA_SOURCE'],
+    ['apiBase 前缀', 'function apiBase'],
+    ['接口取数', "apiUrl('/bootstrap')"],
+    ['来源横幅', 'function showSourceBanner'],
+    ['原生会话挂载位', 'function renderAgentSlot'],
+    ['发送改派发事件', 'new CustomEvent(EVT_DRAFT'],
+    ['症状写入', "apiUrl('/symptoms')"],
+    ['本机今天', 'function todayIso'],
+    ['保存后重取档案', 'async function reloadProfile'],
+    ['boot 挂载位', 'renderAgentSlot()'],
+    /* 这条是踩出来的：替换 todayIso 时把 esc 的定义整段吃掉了，
+       运行时 `esc is not defined`，整页白屏——而指纹清单当时没覆盖到它。 */
+    ['esc 转义还在', "const esc = (s) => String(s == null ? '' : s)"],
+  ]
+  const missing = FINGERPRINTS.filter(([, needle]) => !appText.includes(needle)).map(([id]) => id)
+  if (missing.length) {
+    throw new Error(`public/app.js 缺少这些替换痕迹：${missing.join('、')}——原型锚点变了，先同步 scripts/build-public.mjs`)
+  }
+  /* 反向：原型里那些**不许**带进开发版的东西 */
+  const FORBIDDEN = [
+    ['自建聊天框模拟回复', '（原型演示）我收到了'],
+    ['内存假保存', '仅本页内存，不落库'],
+    ['写死的今天', "date: '2026-10-25'"],
+  ]
+  const leaked = FORBIDDEN.filter(([, needle]) => appText.includes(needle)).map(([id]) => id)
+  if (leaked.length) {
+    throw new Error(`public/app.js 里还有不该带进开发版的内容：${leaked.join('、')}`)
   }
 
   const changed = []

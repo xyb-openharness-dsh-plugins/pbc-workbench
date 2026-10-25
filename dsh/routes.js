@@ -55,6 +55,8 @@ export function errorBody(error) {
       EXPORT_SAVE_UNAVAILABLE: 501,
       PROFILE_NOT_FOUND: 404,
       WORKSPACE_PATH_INVALID: 400,
+      /* 患者填错了字段（0–10 写 11、日期写了 2 月 30 日）→ 400，不是服务端错误 */
+      VALIDATION_FAILED: 400,
       EMPTY_DB_PATH: 500,
     }[code] ?? 502
     return { status, body: { error: code, message: error.message } }
@@ -115,7 +117,7 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
         demo: typeof source.isDemo === 'function' ? source.isDemo() : null,
         /* 前端据此区分"演示库"和"记进你自己的库"。只给结论，不给路径。 */
         dataDirConfigured: dataDirConfigured === null ? null : Boolean(dataDirConfigured),
-        capabilities: ['bootstrap', 'profile', 'export', 'mineru-settings'],
+        capabilities: ['bootstrap', 'profile', 'export', 'symptoms', 'mineru-settings'],
         error: failure || undefined,
       })
     }
@@ -159,14 +161,11 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
       try {
         const full = source.profile(key, { includePrivate: true })
         if (!full) return sendJson(res, 404, { error: 'profile_not_found', key })
-        const { renderPrepMarkdown, exportFilename, hasPrivateContent } = await import('./export.js')
-        /* 这里**不**把私密字段传进渲染器：渲染器本身就按 visibility 过滤，
-           这里再传 includePrivate 等于留一条后门。publicProfile 只保留非私密项。 */
-        const md = renderPrepMarkdown(full, {
-          generatedAt: null,
-          version,
-          excludedPrivate: hasPrivateContent(full),
-        })
+        const { renderPrepMarkdown, exportFilename } = await import('./export.js')
+        /* 私密过滤在 renderPrepMarkdown 内部完成（不靠这里传参，也不靠 includePrivate）。
+           这里取全量是为了让渲染器**自己**发现"有私密内容被排除"并写下排除声明——
+           传 false 会让排除声明也一起消失，用户会以为数据丢了。 */
+        const md = renderPrepMarkdown(full, { version })
         return sendMarkdown(res, 200, md, {
           'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(exportFilename(full))}`,
         })
@@ -186,6 +185,45 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
       } catch (error) {
         const { status, body } = errorBody(error)
         return sendJson(res, status, body)
+      }
+    }
+
+    /* 记一条痒/累 —— 闭环的"记录"半环。
+       第一版没有这条路由：前端"保存"只写内存 + 一个 toast 说"不落库"，
+       患者记完刷新即丢。日期必须由调用方显式给（不默认"今天"：客户端时钟可能是错的，
+       而这条记录要和化验单并排给医生看）。 */
+    if (path === `${API_PREFIX}/symptoms`) {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method_not_allowed' })
+      if (typeof source.addSymptom !== 'function') return sendJson(res, 501, { error: 'symptom_write_unavailable' })
+      let body = {}
+      try {
+        const raw = await readBody(req, 64 * 1024)
+        body = raw.length ? JSON.parse(raw.toString('utf8')) : {}
+      } catch {
+        return sendJson(res, 400, { error: 'bad_json', message: '请求体不是合法 JSON' })
+      }
+      try {
+        const saved = source.addSymptom(body)
+        return sendJson(res, 201, { ok: true, saved })
+      } catch (error) {
+        const { status, body: err } = errorBody(error)
+        /* 校验失败要把字段名带回去，前端才能把错误挂到那个控件上，而不是弹个笼统的 toast */
+        return sendJson(res, status, error.field ? { ...err, field: error.field } : err)
+      }
+    }
+
+    /* 删掉刚记错的那一条（更正语义：不是"删除数据"，是"这条记错了"）。 */
+    const symptomDelete = path.match(new RegExp(`^${API_PREFIX}/symptoms/(\\d+)$`))
+    if (symptomDelete) {
+      if (req.method !== 'DELETE') return sendJson(res, 405, { error: 'method_not_allowed' })
+      if (typeof source.removeSymptom !== 'function') return sendJson(res, 501, { error: 'symptom_write_unavailable' })
+      try {
+        const removed = source.removeSymptom(Number(symptomDelete[1]))
+        if (!removed) return sendJson(res, 404, { error: 'symptom_not_found' })
+        return sendJson(res, 200, { ok: true })
+      } catch (error) {
+        const { status, body: err } = errorBody(error)
+        return sendJson(res, status, err)
       }
     }
 

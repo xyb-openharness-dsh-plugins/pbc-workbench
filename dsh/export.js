@@ -97,7 +97,9 @@ const STATE_TEXT = {
 /**
  * 生成复诊准备 markdown。
  * @param {object} profile 读模型给的单份档案（camelCase，与 demo-data.js 同形）
- * @param {{now?:Date, version?:string, excludedPrivate?:boolean, windowMonths?:number}} [opts]
+ * @param {{now?:Date, version?:string, windowMonths?:number}} [opts]
+ *   注意：**没有** excludedPrivate 选项。私密过滤与"是否写排除声明"都在本函数内部算，
+ *   调用方传什么都不影响——上一版正是靠调用方记得传参，结果两个出口都漏了。
  */
 export function renderPrepMarkdown(profile, opts = {}) {
   const now = opts.now instanceof Date ? opts.now : new Date()
@@ -105,6 +107,14 @@ export function renderPrepMarkdown(profile, opts = {}) {
   const cutoff = ymd(monthsAgo(now, windowMonths))
   const p = profile ?? {}
   const out = []
+
+  /* 私密过滤的唯一实现：**在这里**，不在调用方。
+     第一版靠调用方记得传 includePrivate:false，而 routes.js:157 与 workbench.js:79
+     为了页面完整都传了 true —— 于是导出把私密原文带了出去，文件末尾还印着
+     "本文件不包含"，是"既声明又违反"。现在无论调用方传什么，导出侧一律剔除；
+     是否写排除声明也由这里自己算，不信调用方。 */
+  const shared = (list) => (list ?? []).filter((r) => r && r.visibility !== 'private')
+  const excludedPrivate = hasPrivateContent(p)
 
   out.push(`# 复诊准备 · ${p.label ?? '档案'}${p.name ? `（${p.name}）` : ''}`)
   out.push('')
@@ -178,13 +188,13 @@ export function renderPrepMarkdown(profile, opts = {}) {
   }
 
   /* 五、服药漏记（按月，只给数字） */
-  const adh = (p.adherence ?? []).filter((a) => inWindow(`${a.month}-01`, cutoff))
+  const adh = shared(p.adherence).filter((a) => inWindow(`${a.month}-01`, cutoff))
   if (adh.length) {
     out.push(section('服药漏记（本人记录）', table(['月份', '漏记次数'], adh.map((a) => [a.month, a.missed]))))
   }
 
   /* 六、痒与累（本人感受，不是分级） */
-  const syms = (p.symptoms ?? []).filter((s) => inWindow(s.date, cutoff))
+  const syms = shared(p.symptoms).filter((s) => inWindow(s.date, cutoff))
   if (syms.length) {
     out.push(section('痒与累（本人记录，不是医生结论）', [
       table(['日期', '瘙痒 0–10', '乏力 1–3', '夜间加重', '抓破皮肤', '夜醒次数', '备注'], syms.map((s) => [
@@ -202,7 +212,7 @@ export function renderPrepMarkdown(profile, opts = {}) {
   }
 
   /* 七、并发症筛查（按系统分节，标题来自库里的 sectionTitle） */
-  const scr = (p.screening ?? []).filter((s) => inWindow(s.date, cutoff))
+  const scr = shared(p.screening).filter((s) => inWindow(s.date, cutoff))
   if (scr.length) {
     const bySection = new Map()
     for (const s of scr) {
@@ -217,13 +227,13 @@ export function renderPrepMarkdown(profile, opts = {}) {
   }
 
   /* 八、换线记录（只抄医生原话） */
-  const reg = (p.regimenChanges ?? []).filter((c) => inWindow(c.date, cutoff))
+  const reg = shared(p.regimenChanges).filter((c) => inWindow(c.date, cutoff))
   if (reg.length) {
     out.push(section('换线与用药调整（医生原话）', table(['日期', '医生原话', '我的理解状态'], reg.map((c) => [c.date, c.text, c.status]))))
   }
 
   /* 九、想问医生的问题（本人写的，工作台不生成问题） */
-  const qs = (p.questions ?? []).filter((q) => !q.done)
+  const qs = shared(p.questions).filter((q) => !q.done)
   out.push(section('想问医生的问题', qs.length
     ? qs.map((q) => `- ${q.text}`).join(LINE)
     : '（这一栏留空，由本人手写。）'))
@@ -233,7 +243,7 @@ export function renderPrepMarkdown(profile, opts = {}) {
   out.push('---')
   out.push('')
   out.push('本文件不含任何「是否应答」「需要加药」之类的判断；这类判断请由主诊医生给出。')
-  if (opts.excludedPrivate) {
+  if (excludedPrivate) {
     /* 不写原文，只写"有这块内容、被有意排除" */
     out.push('')
     out.push('本人标记为私密的记录（痒累自述、合并症、换线记录中被标私密的部分）本文件不包含。')

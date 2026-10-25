@@ -127,6 +127,8 @@ export function createHandler({ workbench }) {
       bootstrap: () => workbench.bootstrap(),
       profile: (key, opts) => workbench.getProfile(key, opts),
       saveExport: (key) => workbench.saveExport(key),
+      addSymptom: (input) => workbench.addSymptom(input),
+      removeSymptom: (id) => workbench.removeSymptom(id),
       isDemo: () => workbench.isDemo,
     },
     version: workbench.version,

@@ -8,6 +8,50 @@
 - **接线前置修复**：`cordis.patch.yml` 补 `config.root: !!js dshHomePath('pbc')`；`dsh/index.js` 声明 `Config.root`
   （只补一边会被 `check-workbench-package` ⑤ 判为"注入但未声明"，装机后重启回内存库）。
 
+## 0.2.4 — 2026-10-25（M2 独立评审翻案：修 3 条 P0）
+
+这一版**没有新功能**，全部是被独立评审推翻后补的。三条 P0 的共同点是"文档立了红线、代码没做到、
+测试还给了绿灯"，所以每条都同时修了代码与测试。
+
+- **P0-1 私密记录漏进导出**（用户可见：导出文件里不再出现标了私密的内容）。
+  `dsh/export.js` 的 `renderPrepMarkdown` 之前只按时间窗过滤，没有 `visibility` 条件；
+  `routes.js` 与 `workbench.js` 还都传 `includePrivate:true`。于是症状备注与换线医生原话被原样写进
+  带出去的文件，而文件末尾印着"本文件不包含"。修法：过滤移进渲染器内部（`shared()`），
+  **删掉 `excludedPrivate` 选项**——调用方传什么都不影响；同时补 `dsh/readmodels.js` 的
+  `regimenChanges.visibility` 透传（之前两个出口各以为自己过滤过）。
+  新增 `test/export-private.test.mjs` 4 条（真库真端口，正向反向双断言），反向对照验证过"去掉过滤就红"。
+- **P0-2 判读词进了唯一数据源**（用户可见：导出文件标题不再带"部分应答"）。
+  演示档案名 `档案 A · 部分应答` 经读模型直出界面、并成为患者交给医生的文件首行；
+  改为 `档案 A · 随访中`。`check-wording.mjs` 的 `response-verdict` 规则去掉谓语前缀要求
+  （裸 label 之前永远逃检），新增句内否定放行以免误伤免责句。
+- **P0-3 闭环缺"记录"半环**（用户可见：记一次痒真的存下来了，刷新不丢）。
+  之前前端只有 1 个 `fetch(/bootstrap)`、后端 5 个路由全 GET、`workbench` 没有写入方法，
+  "保存"只写内存 + toast 自承"不落库"。新增 `dsh/writes.js` → `Workbench.addSymptom/removeSymptom`
+  → `POST /symptoms`（201）/ `DELETE /symptoms/:id` → 前端真写库并 `reloadProfile()` 重取。
+  日期用 `todayIso()` 取本机今天（不用 `toISOString()`，UTC 在东八区会退一天）。
+  health `capabilities` 加 `symptoms`。新增 `test/symptom-write.test.mjs` 7 条，
+  `probe-dev.py` 新增 A10（点保存后 bootstrap 症状条数必须 +1，实测 7→8）。
+- **顺带修掉的两个显示层 bug**：①记录页 `痒 null/10 · 睡被打断 null 次` → 改为「痒 未记 / 累 未记」
+  （0 分与没记在复诊回顾里是两件事）；②`build-public.mjs` 的定点替换静默空转导致
+  `todayIso is not defined` 整页白屏 → 加 11 条产物指纹断言 + 3 条"不许带进开发版"的反向断言。
+- 文档：`ACCEPTANCE.md` 把 ACC-02 的"私密不进导出"从"通过"改成如实记录（这是全仓唯一一处
+  把被证伪项写成通过），并新增限制段第 5、6 条写明三处翻案；`METRIC-GRADING.md` 纠正
+  `dsh/ctcae.js` 不存在、GGT 并未启用；`SPEC.md`/`SCENARIOS.md` 的一级/二级数量笔误（10/32、33 → 9/30）；
+  `DEV-REQUIREMENTS` 新增 §七 追补 7 条（30–36），每条带评审原话与验收命令；
+- **装机与截图（同版）**：`release/ductpal-dsh-pbc-workbench-0.2.4.tgz`（50 files，
+  sha256 `7c5d18da8fb727087a95d3ea2a45873ab9ba74612a89eee3db3c7933ba53e241`）已装进
+  `~/.dsh/profiles/desktop`（`devDependencies` + `dsh.profile.bundles` 双登记，`--offline` 安装），
+  副本与 tgz `diff -rq` 逐文件一致。装机副本探针全绿：`health.version=0.2.4`、`POST /symptoms` 201、
+  症状条数 7→8、`itch=99` 回 400 带 `field`、导出 200。
+  README 的 7 张截图改为截**跑起来的开发版**（之前截的是 `file://` 原型，图里版本 chip 是
+  「v0.1.0 · 原型」与包版本不符＝虚报）；`shoot-readme.py` 加两道守卫：出现 `#source-banner`
+  （＝演示数据）或版本 chip 不含包版本，直接退出 1，不出图。
+  `DESIGN-REVIEW.md` 追加开发者逐条处理记录（未修的 P1 如实留待）。
+- 校验：`npm run check` **85 test 全绿**、`node scripts/check-wording.mjs` 0 处越界、
+  `probe-prototype.py` 与 `probe-dev.py` 双绿、`npm run audit` 无 fail。
+- **仍未做（不许在验收里算通过）**：重启 Harness 后的真机走查（ACC-04 以后全部界面层）；
+  MinerU 真实上传（无 Token）；P1-1/P1-2/P1-3/P1-8 四条真实缺口（G2 前需决定补实现还是降级文档）。
+
 ## 未发布 — M1（2026-10-25）
 
 - 新增 `docs/` 九件：SPEC / DEV-REQUIREMENTS-2026-10-25 / DIFF-MATRIX / SCENARIOS / PATIENT-FLOW /

@@ -1,8 +1,8 @@
 # 验收记录
 
-代码版本/commit/dirty 状态：`0.2.3` / `1f64453` + 本轮未提交的文档改动（CHANGELOG、RELEASE、ACCEPTANCE）。
-包名称/版本/tgz/SHA-256：`@ductpal-dsh/pbc-workbench` · `0.2.3` ·
-`release/ductpal-dsh-pbc-workbench-0.2.3.tgz` · `1e8e6dbbbe4bd6dfbcabc64c7ff43ae7dd31a38a680889d6beb21ef1e0af7060`。
+代码版本/commit/dirty 状态：`0.2.4` / 见提交 + 本轮未提交的文档改动（CHANGELOG、RELEASE、ACCEPTANCE）。
+包名称/版本/tgz/SHA-256：`@ductpal-dsh/pbc-workbench` · `0.2.4` ·
+`release/ductpal-dsh-pbc-workbench-0.2.4.tgz` · `7c5d18da8fb727087a95d3ea2a45873ab9ba74612a89eee3db3c7933ba53e241`。
 Desktop 版本/OS/架构/Node：DSH Desktop `0.2.1-rc.3` / macOS `26.0` / `arm64` / Node `v22.19.0`。
 安装入口/实际 profile/执行位置：本地 tgz（`file:` 依赖）+ `dsh.profile.bundles` 双登记 /
 `~/.dsh/profiles/desktop`（**实测进程行末即该路径，Web GUI 端口 56166**）/ 本机 `default-workspace` 会话内。
@@ -15,8 +15,8 @@ Agent 不自行重启宿主。按 06 号"三层验收"口径，现在只到"配�
 | --- | --- | --- | --- | --- | --- |
 | ACC-00 | 静态 | `dsh-wb-cli audit` 无 fail；warn 逐条给结论 | **37/37 通过 · 0 失败 · 0 待人工** | `npm run audit` | 通过 |
 | ACC-01 | 静态 | 语法/类型/包合同/清单 | 退出 0：版本 7 处一致、语法 50 文件、schema 24 表 0 判读列、医疗表述 29 文件 0 越界、演示库同构、74 test 全绿、宿主注册契约符合、`staticPass:true` | `npm run check` | 通过 |
-| ACC-02 | 集成 | 代表业务链与迁移/主体隔离 | bootstrap 七键、两档案 21 键与 demo-data 逐字段 deepStrictEqual、迁移幂等、就诊准备导出十段、私密不进导出 | `npm run test`（demo-parity / store / server 26 条） | 通过 |
-| ACC-03 | 包 | 从实际 tgz 安装，版本/hash 一致 | tgz 49 files；副本与 tgz `diff -rq` **逐文件一致**；`lib/version.js` = 0.2.3 | `npm pack` + `diff -rq` + `check-install.mjs --home ~/.dsh --profile desktop` | 通过 |
+| ACC-02 | 集成 | 代表业务链与迁移/主体隔离 | bootstrap 七键、两档案 21 键与 demo-data 逐字段 deepStrictEqual、迁移幂等、就诊准备导出十段 | `npm run test`（demo-parity / store / server / export-private / symptom-write） | 通过（2026-10-25 补：**此格曾把「私密不进导出」勾成通过，实为假绿**——见限制段第 5 条） |
+| ACC-03 | 包 | 从实际 tgz 安装，版本/hash 一致 | tgz 50 files；副本与 tgz `diff -rq` **逐文件一致**；`lib/version.js` = 0.2.4 | `npm pack` + `diff -rq` + `check-install.mjs --home ~/.dsh --profile desktop` | 通过 |
 | ACC-04 | UI | 已安装列表→左侧入口→业务页 | **未做**：需重启 Harness 加载新包 | 重启后：市场切「已安装」核对条目 → 左侧固定入口打开 | 未验证 |
 | ACC-05 | UI | 无会话可用，所选布局和原生会话 | **未做**：重启后第一动作是左侧新建会话，再回工作台看连接状态 | — | 未验证 |
 | ACC-06 | UI | 一级/二级页与配置弹窗逐项对照 | 开发版已用真机 Chrome 验过 9 一级 / 30 二级无空视图（`probe-dev.py`）；宿主容器内未验 | `python3 scripts/probe-dev.py` | 部分（dev 容器通过，宿主容器未验证） |
@@ -57,6 +57,24 @@ Agent 不自行重启宿主。按 06 号"三层验收"口径，现在只到"配�
    `/tmp/mount-probe.mjs`（`MOUNT='/w/abc'` 剥前缀转交同一份 handler）验过四个静态资源全 200，
    但仍不等于宿主真实容器内验过。
 
+5. **本轮独立评审（2026-10-25）推翻过本文件的一格，记在这里不许抹掉**：ACC-02 曾把
+   「私密不进导出」写成"通过"，实际两个导出出口（HTTP `/export/:key.md`、落盘 `/save`）都没按
+   `visibility` 过滤，症状备注与换线医生原话被原样写进带出去的文件，而文件末尾还印着
+   「本人标记为私密的记录…本文件不包含」。配套测试 `test/server.test.mjs:100-107` 的断言素材取自
+   演示数据，而演示数据里一条 `private` 都没有 → 循环空转、断言恒真，是**假绿**。
+   已修（过滤移到 `dsh/export.js` 内部，两个出口都覆盖）+ 新增 `test/export-private.test.mjs`
+   4 条（真库真端口 + 正向反向双断言 + 反向对照验证过"去掉过滤就红"）。
+   教训已回流到 `docs/DEV-REQUIREMENTS` §七。
+
+6. **同轮评审还推翻了两条**：①`档案 A · 部分应答` 把判读词写进了唯一数据源，经读模型直出界面、
+   还成了患者交给医生的文件标题首行；已改为「档案 A · 随访中」，并把 `check-wording` 的
+   `response-verdict` 规则从「要求谓语前缀」改成「结论词出现在任何字段值里都算越界」
+   （否则裸 label 永远逃检）。②闭环缺"记录"半环：前端只有 1 个 `fetch(/bootstrap)`、
+   后端 5 个路由全 GET、`dsh/workbench.js` 没有写入方法，患者记的痒/累只存在内存里，
+   toast 自己写着"不落库"。已补 `dsh/writes.js` + `POST /symptoms` + `DELETE /symptoms/:id`
+   + 前端真写库 + `test/symptom-write.test.mjs` 7 条 + `probe-dev.py` 的 A10（点保存后
+   bootstrap 里症状条数必须 +1）。
+
 未启用可选记忆时相关项标不适用并说明。UI 确认属于设计验收，不替代实际 Desktop 加载与业务验收。
 
 | ACC-20 | 设置入口可达、目录状态真实、取消无副作用、换目录保护旧资料 | | 未验证 |
@@ -70,7 +88,7 @@ Agent 不自行重启宿主。按 06 号"三层验收"口径，现在只到"配�
 | --- | --- | --- | --- |
 | ACC-24 | 记录本机安装 / Git 推送 / GitHub Release / 市场PR分别完成到哪一步；未授权项为不适用 | | 未验证 |
 | ACC-25 | 市场安装来源与条目一致；Release只有在YAML显式tarball时才是所选来源，否则按目录协议使用源码或npm | | 未验证 |
-| ACC-26 | 包版本、客户端版本、实际安装副本、tar hash一致；Desktop运行界面加载单独确认 | 包 0.2.3 = 客户端常量 0.2.3 = 安装副本 0.2.3 = `lib/version.js` 0.2.3，tgz sha256 `1e8e6dbb…`，副本与 tgz 逐文件一致；**界面加载未确认** | 部分（界面层未验） |
+| ACC-26 | 包版本、客户端版本、实际安装副本、tar hash一致；Desktop运行界面加载单独确认 | 包 0.2.4 = 客户端常量 0.2.4 = 安装副本 0.2.4 = `lib/version.js` 0.2.4，tgz sha256 `7c5d18da…`，副本与 tgz 逐文件一致；**界面加载未确认** | 部分（界面层未验） |
 | ACC-27 | 真实市场PR URL、最新检查、合并状态、目录可见和市场可安装分别记录；不得把PR提交称为已上架 | | 未验证 |
 
 ## DSH 原生 Agent 对话

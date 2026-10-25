@@ -49,7 +49,7 @@
     SOURCE_STATES = Array.isArray(data.sourceStates) ? data.sourceStates : []
     return true
   }
-  const VERSION = 'v0.2.3'
+  const VERSION = 'v0.2.4'
   const EVT_DRAFT = 'pbc:agent-draft'
 
   const NAV = [
@@ -591,8 +591,13 @@
           ${list.map((s) => {
             const lab = profile().labs.find((r) => r.date === s.date)
             const alp = lab ? lab.items.find((i) => i.code === 'ALP') : null
+            /* 没记的字段写"未记"，不能直接插值：`null` 会原样打出来变成「痒 null/10」，
+               患者会以为记录坏了；而「0 分」与「没记」在复诊回顾里是两件事，不能都显示成 0。 */
+            const itchTxt = s.itch == null ? '痒 未记' : `痒 ${s.itch}/10`
+            const fatTxt = s.fatigue == null ? '累 未记' : `累 ${s.fatigue}/3`
+            const sleepTxt = s.sleepBreaks == null ? '' : ` · 睡被打断 ${s.sleepBreaks} 次`
             return `<li><span class="time">${esc(s.date)}</span><span>
-              <b>痒 ${s.itch}/10 · 累 ${s.fatigue}/3</b>${s.nightWorse ? ' · 夜间重' : ''}${s.scratch ? ' · 抓破' : ''} · 睡被打断 ${s.sleepBreaks} 次
+              <b>${itchTxt} · ${fatTxt}</b>${s.nightWorse ? ' · 夜间重' : ''}${s.scratch ? ' · 抓破' : ''}${sleepTxt}
               ${s.note ? `<br><span class="muted">${esc(s.note)}</span>` : ''}
               <br><span class="muted">同日指标：${alp ? `ALP ${alp.value} U/L（${alp.refHigh ? pct(alp.value / alp.refHigh) + '×ULN' : '无上限'}）` : '当天没有化验'}</span>
             </span></li>`
@@ -830,19 +835,36 @@
       toast('已把提示词放进输入框（不会自动发送）')
     }))
     const saveItch = $('#save-itch')
-    if (saveItch) saveItch.addEventListener('click', () => {
+    if (saveItch) saveItch.addEventListener('click', async () => {
+      /* 开发版：真的写库。日期取**本机今天**（不写死），因为这条记录要和化验单
+         并排给医生看，日期错了比没有更糟。 */
       const s = {
-        date: '2026-10-25',
+        profileKey: state.profileKey,
+        date: todayIso(),
         itch: Number($('#itch').value),
         nightWorse: $('#night').checked,
         scratch: $('#scratch').checked,
-        sleepBreaks: Number(state.draft.sleepBreaks),
         fatigue: state.draft.fatigue,
         note: $('#note').value,
       }
-      state.localSymptoms.unshift(s)
-      toast('已记下这一次（演示：仅本页内存，不落库）')
-      state.view = 'symptoms'; state.sub = 'log'; render()
+      saveItch.disabled = true
+      try {
+        const res = await fetch(apiUrl('/symptoms'), {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(s),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || '保存失败')
+        toast(data.saved && data.saved.persisted === false
+          ? '已记下（演示模式：这次不会落到你自己的资料库）'
+          : '已记下这一次')
+        state.draft.note = ''
+        await reloadProfile()
+        state.view = 'symptoms'; state.sub = 'log'; render()
+      } catch (error) {
+        toast('没能保存：' + (error.message || '请稍后重试'))
+      } finally {
+        saveItch.disabled = false
+      }
     })
     const itch = $('#itch')
     if (itch) itch.addEventListener('input', () => { $('#itch-out').textContent = itch.value; state.draft.itch = Number(itch.value) })
@@ -1039,6 +1061,26 @@
       '<div class="msg ai"><b>AI 对话在右侧原生面板</b><br>这个页面只负责整理资料。' +
       '点页面里的「AI 帮我填」会把提示词和这一页的病情要点交给宿主的原生会话，' +
       '由你确认后再发送；本页不会替你回答医学问题。</div>'
+  }
+
+  /* 本机今天的 YYYY-MM-DD。不用 toISOString().slice(0,10)：那是 UTC 日期，
+     东八区凌晨会退成前一天，患者记的"今天"就落到昨天去了。 */
+  function todayIso() {
+    const d = new Date()
+    const p = (n) => String(n).padStart(2, '0')
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+  }
+
+  /* 保存后重取档案：界面上的数字必须来自库里，不能只改内存。 */
+  async function reloadProfile() {
+    try {
+      const res = await fetch(apiUrl('/profile/' + encodeURIComponent(state.profileKey) + '?private=1'))
+      if (!res.ok) return
+      const data = await res.json()
+      if (!data.profile) return
+      const at = DEMO.profiles.findIndex((x) => x.key === data.profile.key)
+      if (at >= 0) DEMO.profiles[at] = data.profile
+    } catch { /* 重取失败不影响"已保存"这个事实，页面保持旧数据 */ }
   }
 
   /* ------------------------------ 启动 ------------------------------ */

@@ -171,6 +171,10 @@ function readProfile(db, key, { includePrivate = false } = {}) {
         text: r.doctor_text,
         /* 我理解到什么程度：只有 unclear/understood 两态，没有"应答判定" */
         status: r.my_state === 'understood' ? '已理解' : '待我确认理解',
+        /* visibility 必须透传：导出层要靠它做二次过滤。第一版这里没带，
+           于是 readmodels 过滤过一遍、导出层拿不到字段又放行了一遍——
+           两个出口各自以为自己已经过滤，谁都没真的过滤。 */
+        visibility: r.visibility,
       })),
     symptoms: syn,
     screening: scr,

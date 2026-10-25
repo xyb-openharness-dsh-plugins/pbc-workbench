@@ -79,7 +79,10 @@ function makeLabs(profileKey, seed, trend) {
 function buildProfileA() {
   return {
     key: 'A',
-    label: '档案 A · 部分应答',
+    /* label 是"档案名"，不是结论。第一版把治疗反应写进了档案名（判读词），
+       它经 readmodels 直出界面，还成了患者打印给医生的文件标题首行，与本仓
+       "不判应答"的产品立场直接冲突。档案名只描述"这是哪一份"，不描述"结果好不好"。 */
+    label: '档案 A · 随访中',
     name: '虚构患者甲',
     age: 52,
     sex: '女',
@@ -91,7 +94,9 @@ function buildProfileA() {
     comorbidity: [{ name: '干燥症状', since: '2024', note: '未做唇腺活检' }],
     meds: [{ name: '熊去氧胆酸片', doseText: '250 mg × 5 片/日（按 13–15 mg/kg 由医生确定）', freq: '每日 2–3 次', startDate: '2024-03-20', approval: 'unverified' }],
     adherence: [{ month: '2026-05', missed: 1 }, { month: '2026-06', missed: 0 }, { month: '2026-07', missed: 2 }, { month: '2026-08', missed: 0 }, { month: '2026-09', missed: 1 }, { month: '2026-10', missed: 0 }],
-    regimenChanges: [{ date: '2025-11-06', text: '医生提到"如果 ALP 还降不下来，可以考虑加一种药"，药名当时没记住', status: '待我确认理解' }],
+    /* visibility 必须显式给：读模型会把它透传（导出层要靠它做二次过滤），
+       演示数据少一个字段，parity 测试当场红——这正是 26 号契约的用处。 */
+    regimenChanges: [{ date: '2025-11-06', text: '医生提到"如果 ALP 还降不下来，可以考虑加一种药"，药名当时没记住', status: '待我确认理解', visibility: 'shared' }],
     symptoms: [
       { date: '2026-10-03', itch: 7, nightWorse: true, scratch: true, sleepBreaks: 3, fatigue: 2, note: '夜里最痒，小腿外侧' },
       { date: '2026-09-21', itch: 5, nightWorse: true, scratch: false, sleepBreaks: 1, fatigue: 2, note: '' },

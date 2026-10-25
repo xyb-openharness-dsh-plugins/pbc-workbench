@@ -5,7 +5,7 @@
   "profiles": [
     {
       "key": "A",
-      "label": "档案 A · 部分应答",
+      "label": "档案 A · 随访中",
       "name": "虚构患者甲",
       "age": 52,
       "sex": "女",
@@ -73,7 +73,8 @@
         {
           "date": "2025-11-06",
           "text": "医生提到\"如果 ALP 还降不下来，可以考虑加一种药\"，药名当时没记住",
-          "status": "待我确认理解"
+          "status": "待我确认理解",
+          "visibility": "shared"
         }
       ],
       "symptoms": [
