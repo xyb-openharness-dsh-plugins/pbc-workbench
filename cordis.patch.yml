@@ -1,0 +1,9 @@
+- insert:
+    - id: pbc-workbench-main
+      name: "@ductpal-dsh/pbc-workbench"
+      config:
+        root: !!js dshHomePath('pbc')
+# id 与 root 的取值在 lib/identity.js，由 scripts/check-workbench-package.mjs 比对，别手改这里。
+# root 必须与 dsh/index.js 的 Config.root 同源（dshHomePath 的参数即用户资料目录 slug）；
+# 缺这一条装机后服务会去默认目录找库，表现为 404 / 空档案。
+# name 必须是 npm 包名，写相对路径 Node 解析不到；空文件或纯注释文件会导致启动失败。

@@ -1,0 +1,18 @@
+{
+  "packageName": "@ductpal-dsh/pbc-workbench",
+  "title": "小管宝 DuctPal",
+  "repository": "https://github.com/xyb-openharness-dsh-plugins/pbc-workbench",
+  "description": "原发性胆汁性胆管炎（PBC）患者工作台：把生化序列、治疗与应答记录、乏力瘙痒与并发症筛查整理成可核对、可带去门诊的资料（本机优先）",
+  "slug": "pbc-workbench",
+  "layoutMode": "business-first",
+  "businessWidth": 0.65,
+  "targetUsers": "原发性胆汁性胆管炎（PBC）确诊患者本人；照护者可选",
+  "scenario": "长期 UDCA 治疗与 3-6 个月一次的生化随访中，患者自己说不清“现在算不算控制住”、也攒不齐历年化验与筛查记录",
+  "coreFlow": [
+    "导入或录入最近一次肝功能化验单（ALP/GGT/TBil 等）",
+    "在指标页看到历年生化序列与相对参考上限的对照",
+    "把乏力与瘙痒按天记成表达面，与同日指标并列",
+    "从随访节奏卡生成就诊问题清单，导出带走的档案"
+  ],
+  "completion": "一次门诊前，患者能导出含最近两次生化、治疗与副作用记录、并发症筛查状态与 5 个问题的资料"
+}
