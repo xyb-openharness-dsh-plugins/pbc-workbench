@@ -117,7 +117,7 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
         demo: typeof source.isDemo === 'function' ? source.isDemo() : null,
         /* 前端据此区分"演示库"和"记进你自己的库"。只给结论，不给路径。 */
         dataDirConfigured: dataDirConfigured === null ? null : Boolean(dataDirConfigured),
-        capabilities: ['bootstrap', 'profile', 'export', 'symptoms', 'screening', 'mineru-settings'],
+        capabilities: ['bootstrap', 'profile', 'export', 'symptoms', 'screening', 'trials', 'mineru-settings'],
         error: failure || undefined,
       })
     }
@@ -224,6 +224,20 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
       } catch (error) {
         const { status, body: err } = errorBody(error)
         return sendJson(res, status, err)
+      }
+    }
+
+    /* 临床试验分层匹配（35 号）：建档 + 本地快照 → 分层线索。
+       注意这里**不出数值分**，也不写"适合/不适合"——见 dsh/match.js 头注释。 */
+    const matchPath = path.match(new RegExp(`^${API_PREFIX}/trials/match/([^/]+)$`))
+    if (matchPath) {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method_not_allowed' })
+      if (typeof source.matchTrials !== 'function') return sendJson(res, 501, { error: 'trial_match_unavailable' })
+      try {
+        return sendJson(res, 200, source.matchTrials(decodeURIComponent(matchPath[1])))
+      } catch (error) {
+        const { status, body } = errorBody(error)
+        return sendJson(res, status, body)
       }
     }
 

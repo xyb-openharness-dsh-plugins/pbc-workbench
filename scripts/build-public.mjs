@@ -121,6 +121,8 @@ function renderApp(source, { version, apiPrefix }) {
       `    DEMO = {`,
       `      generatedAt: (data.demo_meta && data.demo_meta.generatedAt) || '',`,
       `      profiles: data.profiles,`,
+      `      /* 三档对照是派生结果，服务器算好带上来（与原型共用 lib/trial-match.js） */`,
+      `      trialMatch: data.trialMatch || {},`,
       `    }`,
       `    SOURCE_STATES = Array.isArray(data.sourceStates) ? data.sourceStates : []`,
       `    return true`,
@@ -272,6 +274,39 @@ function renderApp(source, { version, apiPrefix }) {
     ].join('\n'),
   )
 
+  /* ⑤.5 临床试验匹配：原型用 demoMatch 跑演示规则，开发版改成真接口。
+     结果形状必须一致（分层 + 证据），否则同一页两套渲染逻辑。 */
+  .replace(
+    [
+      `    const doMatch = $('#do-match')`,
+      `    if (doMatch) doMatch.addEventListener('click', () => {`,
+      `      /* 原型里没有接口：用演示规则跑一遍，让"分层 + 证据"这件事可看见。`,
+      `         开发版由 build-public 换成真接口调用。 */`,
+      `      state.trialMatch = demoMatch(profile())`,
+      `      render()`,
+      `    })`,
+    ].join('\n'),
+    [
+      `    const doMatch = $('#do-match')`,
+      `    if (doMatch) doMatch.addEventListener('click', async () => {`,
+      `      /* 开发版走真接口：本地快照 + 分层规则都在服务端跑，前端只渲染。`,
+      `         两边的结果形状必须一致（分层 + 逐条证据），否则同一页会长出两套渲染逻辑。 */`,
+      `      doMatch.disabled = true`,
+      `      try {`,
+      `        const res = await fetch(apiUrl('/trials/match/' + encodeURIComponent(state.profileKey)))`,
+      `        const data = await res.json()`,
+      `        if (!res.ok) throw new Error(data.message || '匹配失败')`,
+      `        state.trialMatch = data`,
+      `        render()`,
+      `      } catch (error) {`,
+      `        toast('没能跑匹配：' + (error.message || '请稍后重试'))`,
+      `      } finally {`,
+      `        doMatch.disabled = false`,
+      `      }`,
+      `    })`,
+    ].join('\n'),
+  )
+
   /* ⑥.5 筛查结果写入：原型里的「⋯ 更多」当初只弹一个 toast（承诺了"补一条"却没通路），
      独立评审 P1-3 点出来了。这里把那条 toast 换成真表单 + 真 POST。 */
   .replace(
@@ -390,6 +425,7 @@ async function main() {
     ['发送改派发事件', 'new CustomEvent(EVT_DRAFT'],
     ['症状写入', "apiUrl('/symptoms')"],
     ['筛查写入', "apiUrl('/screening')"],
+    ['试验匹配走接口', "apiUrl('/trials/match/'"],
     ['本机今天', 'function todayIso'],
     ['保存后重取档案', 'async function reloadProfile'],
     ['boot 挂载位', 'renderAgentSlot()'],

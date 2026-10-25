@@ -17,6 +17,7 @@ import { close, migrate, openDatabase } from './store.js'
 import { bootstrap as readBootstrap, getProfile as readProfile, listProfiles } from './readmodels.js'
 import { seedDemo, hasDemoData, DB_FILE } from './demo.js'
 import { addScreeningRecord, addSymptomLog, removeSymptomLog } from './writes.js'
+import { matchTrials as runTrialMatch } from './match.js'
 import { APP_INFO } from '../lib/version.js'
 
 export class Workbench {
@@ -108,6 +109,20 @@ export class Workbench {
   /** 删掉记错的那一条。 */
   removeSymptom(id) {
     return removeSymptomLog(this.db, id)
+  }
+
+  /**
+   * 临床试验分层匹配（35 号契约）。**不产出数值化匹配分**，只给带证据链的线索。
+   * 私密记录不参与匹配：建档只取抗体/病理/生化/年龄。
+   */
+  matchTrials(profileKey) {
+    const profile = this.getProfile(profileKey, { includePrivate: false })
+    if (!profile) {
+      const error = new Error(`没有这个档案：${profileKey}`)
+      error.code = 'PROFILE_NOT_FOUND'
+      throw error
+    }
+    return runTrialMatch(profile)
   }
 
   /** 记一条筛查结果。返回里带 `persisted`：内存演示库不能假装写盘成功。 */

@@ -130,6 +130,7 @@ export function createHandler({ workbench }) {
       addSymptom: (input) => workbench.addSymptom(input),
       removeSymptom: (id) => workbench.removeSymptom(id),
       addScreening: (input) => workbench.addScreening(input),
+      matchTrials: (key) => workbench.matchTrials(key),
       isDemo: () => workbench.isDemo,
     },
     version: workbench.version,

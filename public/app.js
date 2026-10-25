@@ -45,11 +45,13 @@
     DEMO = {
       generatedAt: (data.demo_meta && data.demo_meta.generatedAt) || '',
       profiles: data.profiles,
+      /* 三档对照是派生结果，服务器算好带上来（与原型共用 lib/trial-match.js） */
+      trialMatch: data.trialMatch || {},
     }
     SOURCE_STATES = Array.isArray(data.sourceStates) ? data.sourceStates : []
     return true
   }
-  const VERSION = 'v0.2.5'
+  const VERSION = 'v0.2.6'
   const EVT_DRAFT = 'pbc:agent-draft'
 
   const NAV = [
@@ -81,6 +83,28 @@
     ALB: { kind: 'abs', cuts: [30, 20], dir: 'low', note: 'g/L', maxGrade: 3 },
   }
   const LABELS = { ALP: '碱性磷酸酶 ALP', GGT: 'γ-谷氨酰转肽酶 GGT', ALT: '丙氨酸氨基转移酶 ALT', AST: '天门冬氨酸氨基转移酶 AST', TBil: '总胆红素 TBil', ALB: '白蛋白 ALB', PLT: '血小板 PLT', Hb: '血红蛋白 Hb', WBC: '白细胞 WBC', ANC: '中性粒细胞 ANC', Cr: '肌酐 Cr' }
+
+  /* 一图秀的配色：**每个指标固定一个颜色**，选择变了颜色也不变——
+     否则用户换个勾选，ALP 从绿变橙，会以为看的是另一条线。 */
+  const CHART_COLORS = {
+    ALP: '#5C6B3C', GGT: '#A8681E', TBil: '#3C5A6B',
+    ALT: '#8A4B6B', AST: '#4B6B8A', ALB: '#6B8A4B',
+    PLT: '#8A6B4B', Hb: '#B0563C', WBC: '#5B7C99', ANC: '#997C5B', Cr: '#7C5B99',
+  }
+
+  /* 指标系列：卡片**按系列分组、组内按临床关注度排序**，不按化验单上的印刷顺序。
+     为什么必须分组：同一张单子上 ALP 与 Hb 相邻，但一个是胆汁淤积、一个是血象，
+     平铺一排会让患者以为它们可比。系列之间永不加总、永不换算（27 号 §1）。 */
+  const METRIC_SERIES = [
+    { key: 'cholestasis', title: '胆汁淤积', hint: 'PBC 的核心线：看趋势，不看单点', codes: ['ALP', 'GGT', 'TBil'] },
+    { key: 'hepatocyte', title: '肝细胞损伤', hint: '合并肝细胞损伤时才一起看', codes: ['ALT', 'AST'] },
+    { key: 'synthesis', title: '合成与储备', hint: '长期病程里比单次数值更值得留意', codes: ['ALB', 'PLT'] },
+    { key: 'blood', title: '血象', hint: '二线药与合并症情境用', codes: ['Hb', 'WBC', 'ANC'] },
+    { key: 'renal', title: '肾功能', hint: '用药安全上下文', codes: ['Cr'] },
+  ]
+
+  /* 组内序号：让"有序"是看得见的，而不是只存在于代码注释里 */
+  const SERIES_ORD = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
 
   /* ------------------------------ 工具 ------------------------------ */
   const $ = (s, r) => (r || document).querySelector(s)
@@ -172,6 +196,11 @@
     page: null,
     draft: { itch: 5, nightWorse: false, scratch: false, sleepBreaks: 1, fatigue: 2, note: '' },
     localSymptoms: [],
+    chartModal: false,
+    /* 一图秀选中的指标：默认三条胆汁淤积线。放在 state 里，切页签再回来不丢。 */
+    chartCodes: ['ALP', 'GGT', 'TBil'],
+    /* 匹配结果：null = 还没跑过（不显示空表，显示"跑一次"） */
+    trialMatch: null,
   }
   const profile = () => DEMO.profiles.find((p) => p.key === state.profileKey)
   const allSymptoms = () => state.localSymptoms.concat(profile().symptoms).sort((a, b) => (a.date < b.date ? 1 : -1))
@@ -438,40 +467,67 @@
   }
 
   /* ------------------------------ 生化线 ------------------------------ */
+  function mcard(it, p, last, order) {
+    const series = seriesFor(p, it.code)
+    const g = gradeOf(it)
+    const prev = series.length > 1 ? series[series.length - 2] : null
+    const delta = prev && it.value != null && prev.value != null ? (Number(it.value) - Number(prev.value)) : null
+    return `
+      <div class="mcard" data-flip tabindex="0" role="button" aria-label="${esc(LABELS[it.code] || it.code)}：正反面可切换">
+        <div class="mcard-inner">
+          <div class="mface front">
+            <span class="label"><span class="ord">${order || ''}</span>${esc(LABELS[it.code] || it.code)}</span>
+            <span class="value">${esc(it.value)} <small>${esc(it.unit || '')}</small></span>
+            <span class="delta">${delta == null ? '无前次可比' : `较前次 ${delta > 0 ? '+' : ''}${delta}`}${it.refHigh == null ? '' : ` · 参考上限 ${it.refHigh}`}</span>
+            <span>${badgeFor(it)}</span>
+            <span class="src">${esc(it.lab)} · ${esc(last.date)}<span class="flip-hint">翻面看全期 ▸</span></span>
+          </div>
+          <div class="mface back">
+            <span class="label">${esc(LABELS[it.code] || it.code)} · 全期 ${series.length} 点</span>
+            ${spark(series.map((s) => s.value))}
+            <ul class="pt-list">${series.slice(-4).map((x) => `<li><span>${esc(x.date)}</span><b>${esc(x.value)}</b>${x.refHigh == null ? '<i>无上限</i>' : `<i>${pct(x.value / x.refHigh)}×ULN</i>`}</li>`).join('')}</ul>
+            <span class="src">${g.state === 'needsUln' ? '这张单子没有上限，无法算倍数' : g.state === 'graded' ? `对照 CTCAE v5.0（${g.ratio ? pct(g.ratio) + '×ULN' : '绝对阈值'}）` : '该项无 CTCAE 分级'}</span>
+          </div>
+        </div>
+      </div>`
+  }
+
+  /* 指标卡：按系列分组 + 组内按临床关注度排序 + 3D 翻面。
+     三条不变量（都有断言）：
+     ① 系列之间不加总、不换算，系列标题写清"这一组在回答什么"；
+     ② 组内顺序取 METRIC_SERIES.codes 的顺序，不取化验单印刷顺序；
+     ③ 单子上没有的指标不出空卡（缺值不伪造）。 */
   function vLabsCards() {
     const p = profile()
     const last = p.labs[p.labs.length - 1]
+    const byCode = new Map(last.items.map((it) => [it.code, it]))
+    const groups = METRIC_SERIES
+      .map((series) => ({ ...series, items: series.codes.map((c) => byCode.get(c)).filter(Boolean) }))
+      .filter((series) => series.items.length)
+    const leftovers = last.items.filter((it) => !METRIC_SERIES.some((series) => series.codes.includes(it.code)))
     return `
       <div class="card">
         <div class="card-head"><span class="card-title">最近一次化验 · ${esc(last.date)}</span>${aiButton('帮我看看这次化验有什么变化', '生化线·指标卡')}</div>
-        <p class="muted">点卡片翻到背面看这条线；缺参考上限的会标「需参考上限」，不会用通用值补。</p>
+        <p class="muted">按系列分组，组内按临床关注度排序。点卡片翻到背面看这条线的全期走势；缺参考上限的会标「需参考上限」，不会用通用值补。</p>
       </div>
-      <div class="metric-grid">
-        ${last.items.map((it) => {
-          const series = seriesFor(p, it.code)
-          const g = gradeOf(it)
-          const prev = series.length > 1 ? series[series.length - 2] : null
-          const delta = prev ? (it.value - prev.value) : null
-          return `
-            <div class="mcard" data-flip>
-              <div class="mcard-inner">
-                <div class="mface front">
-                  <span class="label">${esc(LABELS[it.code] || it.code)}</span>
-                  <span class="value">${esc(it.value)} <small>${esc(it.unit || '')}</small></span>
-                  <span class="delta">${delta == null ? '无前次可比' : `较前次 ${delta > 0 ? '+' : ''}${delta}`}${it.refHigh == null ? '' : ` · 参考上限 ${it.refHigh}`}</span>
-                  <span>${badgeFor(it)}</span>
-                  <span class="src">${esc(it.lab)} · ${esc(last.date)}</span>
-                </div>
-                <div class="mface back">
-                  <span class="label">${esc(LABELS[it.code] || it.code)} · 全期</span>
-                  ${spark(series.map((s) => s.value))}
-                  <span class="delta">${series.length} 个点 · ${esc(series[0].date)} 至 ${esc(series[series.length - 1].date)}</span>
-                  <span class="src">${g.state === 'needsUln' ? '这张单子没有上限，无法算倍数' : g.state === 'graded' ? `对照 CTCAE v5.0（${g.ratio ? pct(g.ratio) + '×ULN' : '绝对阈值'}）` : '该项无 CTCAE 分级'}</span>
-                </div>
-              </div>
-            </div>`
-        }).join('')}
-      </div>`
+      ${groups.map((series) => `
+        <section class="metric-series" aria-label="${esc(series.title)}">
+          <div class="series-head">
+            <h3>${esc(series.title)}</h3>
+            <span class="muted">${esc(series.hint)}</span>
+            <span class="muted">${series.items.length} 项</span>
+          </div>
+          <div class="metric-grid">${series.items.map((it, i) => mcard(it, p, last, SERIES_ORD[i])).join('')}</div>
+        </section>`).join('')}
+      ${leftovers.length ? `
+        <section class="metric-series" aria-label="其他项">
+          <div class="series-head">
+            <h3>其他项</h3>
+            <span class="muted">未归入任何系列的指标（不猜它属于哪条线）</span>
+            <span class="muted">${leftovers.length} 项</span>
+          </div>
+          <div class="metric-grid">${leftovers.map((it) => mcard(it, p, last)).join('')}</div>
+        </section>` : ''}`
   }
 
   function spark(values) {
@@ -487,7 +543,7 @@
     const w = 760, h = 260, padL = 34, padR = 16, padT = 16, padB = 46
     const dates = p.labs.map((r) => r.date)
     const xs = (i) => padL + (i * (w - padL - padR)) / Math.max(dates.length - 1, 1)
-    const colors = { ALP: '#5C6B3C', GGT: '#A8681E', TBil: '#3C5A6B' }
+    const colors = CHART_COLORS
     const lines = codes.map((code) => {
       const s = seriesFor(p, code)
       const vals = s.map((x) => x.value)
@@ -528,15 +584,46 @@
 
   function vLabsChart() {
     const p = profile()
+    /* 可选指标 = 这份档案里真的出现过的指标（不列空指标，选了个没数据的只会有空图） */
+    const available = [...new Set(p.labs.flatMap((r) => r.items.map((i) => i.code)))]
+      .filter((c) => seriesFor(p, c).length)
+    const chosen = state.chartCodes.filter((c) => available.includes(c))
+    const codes = chosen.length ? chosen : available.slice(0, 3)
     return `
       <div class="card">
-        <div class="card-head"><span class="card-title">一图秀 · ${esc(p.label)}</span><span class="muted">各自归一化，不可直接比较</span></div>
-        ${oneChart(p, ['ALP', 'GGT', 'TBil'])}
-        <p class="chart-note">单点不连线；治疗节点只作时间参照，不代表疗效。</p>
+        <div class="card-head">
+          <span class="card-title">一图秀 · ${esc(p.label)}</span>
+          <span class="muted">各自归一化，不可直接比较</span>
+          <button class="btn ghost small" type="button" data-modal="chart">选择指标（已选 ${codes.length}/${available.length}）</button>
+        </div>
+        ${oneChart(p, codes)}
+        <p class="chart-note">单点不连线；治疗节点只作时间参照，不代表疗效。每条线只在自己的刻度里看走势。</p>
+      </div>
+      <div class="modal${state.chartModal ? '' : ''}" id="chart-modal" ${state.chartModal ? '' : 'hidden'} role="dialog" aria-modal="true" aria-label="选择要在图里看的指标">
+       <div class="modal-card card">
+        <div class="card-head">
+          <span class="card-title">选择指标</span>
+          <span class="muted">已选 ${codes.length} / ${available.length} · 最多同时看 5 条</span>
+          <button class="icon-btn" type="button" data-modal-close="chart" aria-label="关闭">×</button>
+        </div>
+        <p class="muted">勾上想看的那几条。颜色是固定的：换个勾选不会让 ALP 变成别的颜色。</p>
+        <div class="chip-row" role="group" aria-label="选择要看的指标">
+          ${available.map((c) => {
+            const on = codes.includes(c)
+            return `<button class="chip${on ? ' on' : ''}" type="button" data-chart-code="${esc(c)}" aria-pressed="${on}">
+              <span class="chip-dot" style="background:${CHART_COLORS[c] || '#777'}"></span>${esc(c)}
+            </button>`
+          }).join('')}
+        </div>
+        <div class="actions-row" style="margin-top:8px">
+          <button class="btn ghost small" type="button" data-chart-code="__reset">回到默认三条（ALP / GGT / TBil）</button>
+        </div>
+        <p class="muted" style="margin-top:6px">最多 5 条：再多线就挤在一起，谁也看不清自己的形状了。</p>
+       </div>
       </div>
       <div class="card">
         <div class="card-head"><span class="card-title">口径</span></div>
-        <p class="muted">三条线各自按全期 min/max 归一化，所以"哪条更高"没有意义；要看倍数请回「指标卡」，那里按每张单子的参考上限算。</p>
+        <p class="muted">每条线各自按全期 min/max 归一化，所以"哪条更高"没有意义；要看倍数请回「指标卡」，那里按每张单子的参考上限算。</p>
       </div>`
   }
 
@@ -791,21 +878,169 @@
   }
 
   /* ------------------------------ 临床研究 ------------------------------ */
-  function vTrialsSearch() {
-    const p = profile()
+  /* 临床试验：建档 → 检索 → 分层线索（starter 35 号）。
+     界面上必须看得到三件事：① 建档里有什么、从哪份报告来 ② 本地没建档的是什么
+     ③ 每条命中是"哪一层"、证据是哪个词。否则它就是个黑箱排序。 */
+  function trialDossierCard(p) {
+    const ab = p.antibodies || {}
+    const last = p.labs[p.labs.length - 1]
+    const alp = last.items.find((i) => i.code === 'ALP')
+    const biopsy = p.fibrosis && /活检|穿刺|biopsy/i.test(String(p.fibrosis.method || '')) ? p.fibrosis : null
+    const rows = [
+      ['AMA', { positive: '阳性', negative: '阴性', untested: '未检测' }[ab.ama], ab.note || '抗体报告'],
+      ['AMA-M2', { positive: '阳性', negative: '阴性', untested: '未检测' }[ab.amaM2], ab.note || '抗体报告'],
+      ['ANA', { positive: '阳性', negative: '阴性', untested: '未检测' }[ab.ana], ab.note || '抗体报告'],
+      ['ALP', alp ? `${alp.value} U/L${alp.refHigh ? `（${pct(alp.value / alp.refHigh)}×ULN）` : '（这张单子未印上限）'}` : '无', last.date],
+      ['肝活检病理', biopsy ? biopsy.value : '本档案没有活检记录', biopsy ? biopsy.date : '—'],
+    ]
     return `
       <div class="card">
-        <div class="card-head"><span class="card-title">检索</span><span class="badge">登记状态，未核实</span></div>
-        <div class="row">
-          <div class="field"><label for="kw">关键词</label><input type="text" id="kw" value="原发性胆汁性胆管炎" ></div>
-          <div class="field"><label for="area">地区</label><input type="text" id="area" value="" placeholder="可空"></div>
-        </div>
-        <div class="actions-row" style="margin-top:8px"><button class="btn" type="button" id="do-search">检索（演示 2 条）</button></div>
-        <ul class="list" style="margin-top:10px">
-          ${p.trials.map((t) => `<li><span class="time">${esc(t.source)}</span><span><b>${esc(t.title)}</b><br><span class="muted">${esc(t.phase)} · ${esc(t.area)} · ${esc(t.status)}</span></span></li>`).join('')}
+        <div class="card-head"><span class="card-title">匹配建档</span><span class="muted">只有「已确认入库」的字段参与匹配</span></div>
+        <p class="muted">PBC 没有常规基因检测、也没有 IHC。能用来匹配的只有抗体谱、肝活检原文与生化——不假装有分子分型。</p>
+        <ul class="list" style="margin-top:8px">
+          ${rows.map(([k, v, src]) => `<li><span class="time">${esc(k)}</span><span><b>${esc(v)}</b><br><span class="muted">来源：${esc(src)}</span></span></li>`).join('')}
         </ul>
-        <p class="muted" style="margin-top:8px">登记 ≠ 有效 ≠ 安全 ≠ 可入组；工作台不判断你符不符合条件。</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">本地没建档的（这些永远「无法自动匹配」）</span></div>
+        <ul class="list">
+          <li><span class="muted">入排条件原文（本登记的纳入/排除标准尚未采集）</span></li>
+          <li><span class="muted">ECOG / 体力状态评分</span></li>
+          <li><span class="muted">既往 UDCA 疗程与剂量</span></li>
+          <li><span class="muted">近 3 个月合并用药与剂量</span></li>
+          ${biopsy ? '' : '<li><span class="muted">肝活检病理（本档案没有活检记录）</span></li>'}
+        </ul>
+        <p class="muted" style="margin-top:6px">缺字段一律判「无法自动匹配」，不判「不适用」——工作台不替你下结论。</p>
       </div>`
+  }
+
+  function trialRow(t) {
+    const layer = t.structured.length ? ['结构化命中', 'grade'] : t.text.length ? ['文本命中', ''] : ['宽口径命中', 'needs']
+    const evidence = t.structured.length
+      ? t.structured.map((h) => `${h.field}=${h.value}（来源：${h.source}）`).join('；')
+      : (t.text.length ? t.text.map((h) => h.term).join('、') : t.broad.map((h) => h.term).join('、'))
+    return `<li>
+      <span class="badge ${layer[1]}">${esc(layer[0])}</span>
+      <span>
+        <b>${esc(t.title)}</b>
+        <br><span class="muted">${esc(t.sourceId)} · ${esc(t.recruitmentStatus || '状态未标')} · ${esc(t.statusNote)}</span>
+        <br><span class="muted">命中证据：${esc(evidence)}</span>
+        ${t.healthyVolunteer ? '<br><span class="muted">⚠ 标题原文写的是健康受试者/生物等效性——这条登记的对象不是你这类人</span>' : ''}
+      </span>
+    </li>`
+  }
+
+  /* 三档对照：与服务器 / 原型共用 lib/trial-match.js 算出来的同一份结果，
+     页面只负责画。**不在这里再判一次**——两处判定一定会分叉。 */
+  function trialTiers() {
+    const p = profile()
+    const all = (DEMO && DEMO.trialMatch) || {}
+    return Array.isArray(all[p.key]) ? all[p.key] : []
+  }
+
+  function vTrialsSearch() {
+    const p = profile()
+    const m = state.trialMatch
+    const tiers = trialTiers()
+    return `
+      ${tiers.length ? `<div class="card">
+        <div class="card-head">
+          <span class="card-title">入排条款对照 · 三档</span>
+          <span class="badge">登记状态，未核实</span>
+        </div>
+        <p class="muted">三档只回答一件事：<b>本机记录与登记里写着的条款是否一致</b>。
+          它<b>不是</b>入组资格判定，也不给百分比——百分比会把这个动作伪装成"你被录取的概率"。</p>
+        ${tiers.map((t) => `
+          <div class="tier-block">
+            <div class="tier-head">
+              <b>${esc(t.title)}</b>
+              <span class="tier-counts">
+                <span class="tier ok">符合 ${t.counts.satisfied}</span>
+                <span class="tier bad">冲突 ${t.counts.conflict}</span>
+                <span class="tier q">待确认 ${t.counts.undetermined}</span>
+              </span>
+            </div>
+            <p class="muted">可判定 ${t.decidable} / ${t.total} 条；来源 ${esc(t.sourceId || '未记')} · ${esc(t.statusNote)}</p>
+            <ul class="list tier-rows">${t.rows.map((r) => `<li>
+              <span class="tier ${r.tier === 'satisfied' ? 'ok' : r.tier === 'conflict' ? 'bad' : 'q'}">${esc({ satisfied: '符合', conflict: '冲突', undetermined: '待确认' }[r.tier])}</span>
+              <span><b>${esc(r.rule)}</b><br><span class="muted">${esc(r.why)}${r.source ? ' · 来源：' + esc(r.source) : ''}</span></span>
+            </li>`).join('')}</ul>
+          </div>`).join('')}
+        <p class="muted" style="margin-top:8px">「待确认」不等于不符合，只表示本机没有这一项记录（例如纳入/排除标准原文本项目未采集）。
+          排序按登记来源顺序，<b>不按档位排</b>——按档位排会让人以为前面的更适合。</p>
+      </div>` : ''}
+      <div class="card">
+        <div class="card-head"><span class="card-title">临床试验 · 分层线索</span><span class="badge">登记状态，未核实</span></div>
+        <p class="muted">工作台产出的是<b>带证据链的检索线索</b>，不是入组资格结论。判定归医生与研究中心。</p>
+        <div class="actions-row" style="margin-top:8px">
+          <button class="btn" type="button" id="do-match">用我的建档跑一次匹配</button>
+          <span class="muted">本地快照 ${m && m.snapshotDate ? esc(m.snapshotDate) : '未加载'} · 快照会过期</span>
+        </div>
+        ${m ? `
+          <div class="row" style="margin-top:10px">
+            ${kv('结构化命中', String(m.counts.structured), '建档实体出现在登记标题里')}
+            ${kv('文本命中', String(m.counts.text), '题材词重合，逐词给证据')}
+            ${kv('宽口径命中', String(m.counts.broad), '只沾大词，排最后')}
+            ${kv('本地快照条数', String(m.trialCount || 0), '不是"全部相关试验"')}
+          </div>` : ''}
+      </div>
+      ${m && m.available ? m.layers.map((L) => `
+        <div class="card">
+          <div class="card-head"><span class="card-title">${esc(L.title)}</span><span class="muted">${esc(L.hint)} · ${L.rows.length} 条</span></div>
+          ${L.rows.length
+            ? `<ul class="list">${L.rows.slice(0, 12).map(trialRow).join('')}</ul>
+               ${L.rows.length > 12 ? `<p class="muted" style="margin-top:6px">只列前 12 条（共 ${L.rows.length} 条）；不按"看起来更像"排序，按证据条数排。</p>` : ''}`
+            : '<p class="muted">这一层没有结果。</p>'}
+        </div>`).join('') : ''}
+      ${m && !m.available ? `<div class="card"><p class="muted">${esc(m.reason)}</p></div>` : ''}
+      ${trialDossierCard(p)}
+      <div class="card">
+        <div class="card-head"><span class="card-title">口径</span></div>
+        <ul class="list">
+          <li><span class="muted">登记状态，未核实；登记 ≠ 有效 ≠ 安全 ≠ 可入组。</span></li>
+          <li><span class="muted">不产出"匹配度 87%"这类综合分——数值化会把"沾到几个词"伪装成"你符合条件"。</span></li>
+          <li><span class="muted">工作台不写"建议参加 / 适合你"；AI 只帮你整理命中证据与要问医生的问题。</span></li>
+        </ul>
+      </div>`
+  }
+
+  /* 原型里的匹配：只跑演示档案自带的 2 条登记，规则与服务器同构
+     （结构化 / 文本 / 宽口径三层 + 逐词证据），这样"分层"这件事在原型里也看得见。
+     开发版由 scripts/build-public.mjs 换成真接口调用，两边的结果形状必须一致。 */
+  function demoMatch(p) {
+    const TERMS = ['原发性胆汁性胆管炎', '胆汁性胆管炎', 'PBC', '胆汁淤积', '熊去氧胆酸', 'UDCA',
+      '奥贝胆酸', 'OCA', '贝特类', '非诺贝特', '肝硬化', '瘙痒', '抗线粒体抗体', 'AMA']
+    const BROAD = ['罕见病', '实体瘤', '慢性肝病', '肝脏疾病', '肝病']
+    const rows = (p.trials || []).map((t) => {
+      const title = t.title
+      const structured = []
+      if ((p.antibodies.ama === 'positive') && /\bAMA\b|抗线粒体抗体/.test(title)) {
+        structured.push({ field: 'AMA', value: '阳性', source: p.antibodies.note, matchedIn: '标题' })
+      }
+      if ((p.antibodies.amaM2 === 'positive') && /AMA[-\s]?M2/i.test(title)) {
+        structured.push({ field: 'AMA-M2', value: '阳性', source: p.antibodies.note, matchedIn: '标题' })
+      }
+      const text = TERMS.filter((x) => title.includes(x)).map((term) => ({ term, matchedIn: '标题' }))
+      const broad = BROAD.filter((x) => title.includes(x)).map((term) => ({ term, matchedIn: '标题' }))
+      return {
+        recordId: t.id, sourceId: t.source, title, recruitmentStatus: t.status,
+        statusNote: '登记状态，未核实', sourceUrl: '', snapshotDate: '2026-10-25',
+        healthyVolunteer: /健康(受试者|人体|志愿者)|生物等效性/.test(title),
+        structured, text, broad,
+      }
+    })
+    const pick = (f) => rows.filter(f)
+    const layers = [
+      { key: 'structured', title: '结构化命中', hint: '建档里的明确实体出现在登记标题里', rows: pick((r) => r.structured.length) },
+      { key: 'text', title: '文本命中', hint: '题材词重合，逐词给出现位置', rows: pick((r) => !r.structured.length && r.text.length) },
+      { key: 'broad', title: '宽口径命中', hint: '只沾到"肝病/罕见病"这类大词，排最后', rows: pick((r) => !r.structured.length && !r.text.length && r.broad.length) },
+    ]
+    return {
+      available: true, snapshotDate: '2026-10-25', trialCount: rows.length,
+      counts: { structured: layers[0].rows.length, text: layers[1].rows.length, broad: layers[2].rows.length },
+      layers,
+      unmatched: ['入排条件原文（本登记的纳入/排除标准尚未采集）', 'ECOG / 体力状态评分', '既往 UDCA 疗程与剂量', '近 3 个月合并用药与剂量'],
+    }
   }
 
   function vTrialsSaved() {
@@ -841,6 +1076,45 @@
     $$('[data-goto]').forEach((b) => b.addEventListener('click', () => {
       const [v, s] = b.dataset.goto.split('/')
       state.view = v; state.sub = s; render()
+    }))
+    const doMatch = $('#do-match')
+    if (doMatch) doMatch.addEventListener('click', async () => {
+      /* 开发版走真接口：本地快照 + 分层规则都在服务端跑，前端只渲染。
+         两边的结果形状必须一致（分层 + 逐条证据），否则同一页会长出两套渲染逻辑。 */
+      doMatch.disabled = true
+      try {
+        const res = await fetch(apiUrl('/trials/match/' + encodeURIComponent(state.profileKey)))
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || '匹配失败')
+        state.trialMatch = data
+        render()
+      } catch (error) {
+        toast('没能跑匹配：' + (error.message || '请稍后重试'))
+      } finally {
+        doMatch.disabled = false
+      }
+    })
+    $$('[data-modal]').forEach((b) => b.addEventListener('click', () => {
+      state.chartModal = true
+      render()
+    }))
+    $$('[data-modal-close]').forEach((b) => b.addEventListener('click', () => {
+      state.chartModal = false
+      render()
+    }))
+    $$('[data-chart-code]').forEach((b) => b.addEventListener('click', () => {
+      const code = b.dataset.chartCode
+      if (code === '__reset') {
+        state.chartCodes = ['ALP', 'GGT', 'TBil']
+      } else if (state.chartCodes.includes(code)) {
+        state.chartCodes = state.chartCodes.filter((c) => c !== code)
+      } else if (state.chartCodes.length >= 5) {
+        toast('最多同时看 5 条线')
+        return
+      } else {
+        state.chartCodes = state.chartCodes.concat(code)
+      }
+      render()
     }))
     $$('[data-flip]').forEach((c) => {
       c.addEventListener('click', () => c.classList.toggle('flipped'))
@@ -1072,6 +1346,7 @@
       if (!$('#page').hidden) { $('#page').hidden = true; pageStack.pop() }
     })
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && state.chartModal) { state.chartModal = false; render(); return }
       if (e.key === 'Escape' && !$('#page').hidden) closePage()
     })
     const saved = Number(localStorage.getItem('pbc.agentWidth'))

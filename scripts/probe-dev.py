@@ -23,6 +23,8 @@
   A9 静态资源全部 200（漏剥前缀的头号症状就是这里 404）
   A10 **记一次痒真的写进库**（点保存 → 再吞一次 bootstrap → 症状条数 +1）。
   A11 **记一条筛查结果真的写进库**（同上，原型里那个「⋯ 更多」当初只弹 toast）。
+  A12 指标卡按系列分组（≥3 个系列头）+ 一图秀有指标选择 chips 且勾选后线条数变化。
+  A13 临床试验匹配：点一次「跑匹配」→ 分层结果出现，且**不出现**数值化匹配度。
       这是闭环的"记录"半环：独立评审实测出前端只写内存、刷新即丢。
 """
 import json
@@ -281,6 +283,86 @@ def main() -> int:
                     problems.append(
                         f"A11 记一条筛查后条数没变（{before_scr} → {after_scr}）：表单还是假的"
                     )
+
+            # A12 指标卡分组 + 一图秀选择器
+            page.click('#sidenav [data-view="labs"]')
+            page.wait_for_timeout(60)
+            if page.query_selector('#subtabs [data-sub="cards"]'):
+                page.click('#subtabs [data-sub="cards"]')
+            page.wait_for_timeout(200)
+            series_titles = page.eval_on_selector_all('.series-head h3', 'e => e.map(x => x.textContent.trim())')
+            metric_cards = page.eval_on_selector_all('.mcard', 'e => e.length')
+            if len(series_titles) < 3:
+                problems.append(f"A12 指标卡只有 {len(series_titles)} 个系列分组（应≥3）")
+            if metric_cards < 5:
+                problems.append(f"A12 指标卡只有 {metric_cards} 张（应≥5）")
+            # 3D 翻面：点一下必须真的加上 flipped，且内层有 transform 过渡
+            flip_ok = False
+            if metric_cards:
+                page.click('.mcard')
+                page.wait_for_timeout(450)
+                flip_ok = page.evaluate(
+                    "() => { const c = document.querySelector('.mcard'); return c.classList.contains('flipped')"
+                    " && getComputedStyle(c.querySelector('.mcard-inner')).transitionDuration !== '0s'; }"
+                )
+                if not flip_ok:
+                    problems.append("A12 指标卡点了没有翻开（3D 翻面失效）")
+            if page.query_selector('#subtabs [data-sub="chart"]'):
+                page.click('#subtabs [data-sub="chart"]')
+            page.wait_for_timeout(250)
+            # 指标选择改成**弹窗**了：先点「选择指标」把窗口打开再勾
+            modal_btn = page.query_selector('[data-modal="chart"]')
+            if not modal_btn:
+                problems.append("A12 一图秀找不到「选择指标」弹窗入口")
+            else:
+                modal_btn.click()
+                page.wait_for_timeout(200)
+            chips = page.eval_on_selector_all('.chip-row [data-chart-code]', 'e => e.length')
+            paths_before = page.eval_on_selector_all('svg.chart path', 'e => e.length')
+            if chips < 4:
+                problems.append(f"A12 一图秀只有 {chips} 个指标 chip（应有可选窗口）")
+            else:
+                page.click('.chip-row [data-chart-code="ALT"]')
+                page.wait_for_timeout(350)
+                paths_after = page.eval_on_selector_all('svg.chart path', 'e => e.length')
+                if paths_after <= paths_before:
+                    problems.append(f"A12 勾选新指标后线条数没变（{paths_before} → {paths_after}）")
+                # 弹窗开着会挡住后面的导航点击，按 Esc 关掉（顺便验键盘关闭）
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(200)
+                # 注意：关掉之后元素还在（带 hidden），要判"可见"而不是"存在"
+                if page.is_visible('#chart-modal'):
+                    problems.append("A12 指标选择窗口按 Esc 没关掉")
+
+            # A13 临床试验分层匹配
+            page.click('#sidenav [data-view="trials"]')
+            page.wait_for_timeout(80)
+            if page.query_selector('#subtabs [data-sub="search"]'):
+                page.click('#subtabs [data-sub="search"]')
+            page.wait_for_timeout(200)
+            match_btn = page.query_selector('#do-match')
+            if not match_btn:
+                problems.append("A13 找不到「用我的建档跑一次匹配」按钮")
+            else:
+                match_btn.click()
+                page.wait_for_timeout(1200)
+                match_text = page.inner_text('#view')
+                layered = ('结构化命中' in match_text) and ('文本命中' in match_text)
+                if not layered:
+                    problems.append("A13 匹配结果没有分层（缺「结构化命中」或「文本命中」）")
+                if '登记状态，未核实' not in match_text:
+                    problems.append("A13 结果里没有「登记状态，未核实」声明")
+                if '无法自动匹配' not in match_text:
+                    problems.append("A13 缺「无法自动匹配」这一态")
+                # 判据只看**结果行**：口径段里那句「不产出『匹配度 87%』这类综合分」
+                # 是必须写着的反面说明，把它扫进去就是判据写错了（实测踩过）。
+                import re as _re
+                score_lines = [
+                    ln for ln in match_text.split('\n')
+                    if '不产出' not in ln and '数值化' not in ln and _re.search(r'匹配度\s*\d+\s*%|匹配指数', ln)
+                ]
+                if score_lines:
+                    problems.append(f"A13 结果行里出现了数值化匹配度：{score_lines[:2]}")
 
             # A7 三档宽度无横向溢出
             overflow = {}

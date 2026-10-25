@@ -61,6 +61,7 @@ export function apply(ctx) {
          而不是让前端静默只写内存。 */
       addSymptom: (input) => requireSource().addSymptom(input),
       addScreening: (input) => requireSource().addScreening(input),
+      matchTrials: (key) => requireSource().matchTrials(key),
       removeSymptom: (id) => requireSource().removeSymptom(id),
       isDemo: () => (source ? source.isDemo : null),
     },

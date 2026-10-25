@@ -138,6 +138,15 @@ a { color: var(--info); }
 .list li:last-child { border-bottom: 0; }
 .time { color: var(--ink-3); font-size: 11.5px; white-space: nowrap; flex: none; }
 
+/* ---------------- 指标系列（分组头 + 组内卡片） ---------------- */
+.metric-series { margin-top: 12px; min-width: 0; }
+.series-head {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;
+  margin-bottom: 7px; padding-bottom: 5px; border-bottom: 1px solid var(--line);
+}
+.series-head h3 { font-size: 13px; font-weight: 650; color: var(--ink); margin: 0; }
+.series-head .muted:last-child { margin-left: auto; }
+
 /* ---------------- 指标卡（3D 翻转） ---------------- */
 .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .mcard { perspective: 1100px; height: 132px; }
@@ -158,8 +167,22 @@ a { color: var(--info); }
 .mface .value { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
 .mface .value small { font-size: 11.5px; font-weight: 500; color: var(--ink-3); }
 .mface .delta { font-size: 12px; color: var(--ink-2); }
-.mface .src { font-size: 11px; color: var(--ink-3); margin-top: auto; }
+.mface .src { font-size: 11px; color: var(--ink-3); margin-top: auto; display: flex; gap: 8px; align-items: baseline; }
+.mface .flip-hint { margin-left: auto; color: var(--brand); white-space: nowrap; }
+.mface.back .flip-hint { display: none; }
+.mcard:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: var(--radius); }
 .spark { width: 100%; height: 46px; display: block; }
+
+/* ---------------- 指标选择 chips ---------------- */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-width: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line-2); background: #fff; color: var(--ink-2);
+  border-radius: 999px; padding: 4px 10px; font-size: 12.5px; cursor: pointer;
+}
+.chip.on { border-color: var(--brand); color: var(--ink); background: #F1F3E6; font-weight: 600; }
+.chip-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+.chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 /* ---------------- 图表 ---------------- */
 .chart-wrap { position: relative; min-width: 0; }
@@ -191,6 +214,30 @@ svg.chart { width: 100%; height: 260px; display: block; }
   summary::after, .ph-hint { display: none !important; }
   .phase-fold { break-inside: avoid; }
 }
+
+/* 临床试验三档对照 */
+.tier-block { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; min-width: 0; }
+.tier-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.tier-counts { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.tier { font-size: 11.5px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line-2); white-space: nowrap; }
+.tier.ok { color: #3F4A2B; background: #EDF0E2; border-color: #C9CFB0; }
+.tier.bad { color: #8A3A16; background: #FBEDE4; border-color: #E7C9B4; }
+.tier.q { color: #6B5A2E; background: #FBF6E4; border-color: #E4D9AE; }
+.tier-rows li { align-items: flex-start; }
+@media print { .tier-block { break-inside: avoid; } }
+
+/* 指标选择窗口（模态）：点「选择指标」打开，选完自动刷新图；Esc 或 × 关闭 */
+.modal { position: fixed; inset: 0; z-index: 90; background: rgba(43,51,32,.28); display: flex; align-items: center; justify-content: center; padding: 18px; }
+.modal[hidden] { display: none !important; }
+.modal-card { max-width: 560px; width: 100%; max-height: 80vh; overflow: auto; box-shadow: 0 12px 40px rgba(43,51,32,.22); }
+.modal-card .card-head { gap: 8px; flex-wrap: wrap; }
+
+/* 指标卡：组内序号 + 背面逐点明细 */
+.mcard .ord { display: inline-block; min-width: 14px; color: var(--brand); font-weight: 700; }
+.mface .pt-list { list-style: none; margin: 2px 0 0; padding: 0; font-size: 11.5px; color: var(--ink-3); width: 100%; }
+.mface .pt-list li { display: flex; gap: 6px; justify-content: space-between; border-bottom: 1px dotted var(--line); padding: 1px 0; }
+.mface .pt-list b { color: var(--ink); font-weight: 600; }
+.mface .pt-list i { font-style: normal; color: var(--ink-3); }
 
 /* ---------------- 卡内"记一条"表单（默认收起，不占视线） ---------------- */
 .add-form { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }

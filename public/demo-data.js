@@ -1977,7 +1977,113 @@
         }
       ]
     }
-  ]
+  ],
+  "trialMatch": {
+    "A": [
+      {
+        "recordId": "t1",
+        "title": "【虚构示例】某二线药物在 PBC 中的随机对照研究",
+        "sourceId": "ctv",
+        "recruitmentStatus": "登记状态，未核实",
+        "statusNote": "登记 ≠ 有效 ≠ 安全 ≠ 可入组",
+        "healthyVolunteer": false,
+        "counts": {
+          "satisfied": 1,
+          "conflict": 0,
+          "undetermined": 1
+        },
+        "decidable": 1,
+        "total": 2,
+        "rows": [
+          {
+            "tier": "satisfied",
+            "rule": "入选：登记病种与本人诊断一致",
+            "mine": "原发性胆汁性胆管炎（PBC）",
+            "source": "本工作台只服务 PBC 患者",
+            "why": "条目要求\"有这一项\"，本机记录：原发性胆汁性胆管炎（PBC）"
+          },
+          {
+            "tier": "undetermined",
+            "rule": "纳入 / 排除标准原文",
+            "mine": null,
+            "source": null,
+            "why": "本项目采集只到标题/登记号/状态，未抓纳入排除原文——这一条必须回去看登记页"
+          }
+        ]
+      },
+      {
+        "recordId": "t2",
+        "title": "【虚构示例】PBC 瘙痒症状管理研究",
+        "sourceId": "chictr_online",
+        "recruitmentStatus": "登记状态，未核实",
+        "statusNote": "登记 ≠ 有效 ≠ 安全 ≠ 可入组",
+        "healthyVolunteer": false,
+        "counts": {
+          "satisfied": 1,
+          "conflict": 0,
+          "undetermined": 1
+        },
+        "decidable": 1,
+        "total": 2,
+        "rows": [
+          {
+            "tier": "satisfied",
+            "rule": "入选：登记病种与本人诊断一致",
+            "mine": "原发性胆汁性胆管炎（PBC）",
+            "source": "本工作台只服务 PBC 患者",
+            "why": "条目要求\"有这一项\"，本机记录：原发性胆汁性胆管炎（PBC）"
+          },
+          {
+            "tier": "undetermined",
+            "rule": "纳入 / 排除标准原文",
+            "mine": null,
+            "source": null,
+            "why": "本项目采集只到标题/登记号/状态，未抓纳入排除原文——这一条必须回去看登记页"
+          }
+        ]
+      }
+    ],
+    "B": [
+      {
+        "recordId": "t1",
+        "title": "【虚构示例】PBC 肝硬化患者长期随访观察研究",
+        "sourceId": "ictrp",
+        "recruitmentStatus": "登记状态，未核实",
+        "statusNote": "登记 ≠ 有效 ≠ 安全 ≠ 可入组",
+        "healthyVolunteer": false,
+        "counts": {
+          "satisfied": 2,
+          "conflict": 0,
+          "undetermined": 1
+        },
+        "decidable": 2,
+        "total": 3,
+        "rows": [
+          {
+            "tier": "satisfied",
+            "rule": "入选：登记病种与本人诊断一致",
+            "mine": "原发性胆汁性胆管炎（PBC）",
+            "source": "本工作台只服务 PBC 患者",
+            "why": "条目要求\"有这一项\"，本机记录：原发性胆汁性胆管炎（PBC）"
+          },
+          {
+            "tier": "satisfied",
+            "rule": "入选：肝硬化（报告原文写着\"肝硬化\"）",
+            "mine": "是（报告原文：肝硬化（报告原文））",
+            "source": "报告日期 2026-02-11",
+            "why": "条目要求\"有这一项\"，本机记录：是（报告原文：肝硬化（报告原文））"
+          },
+          {
+            "tier": "undetermined",
+            "rule": "纳入 / 排除标准原文",
+            "mine": null,
+            "source": null,
+            "why": "本项目采集只到标题/登记号/状态，未抓纳入排除原文——这一条必须回去看登记页"
+          }
+        ]
+      }
+    ]
+  }
 }
   root.DEMO = DEMO
 })(typeof window !== 'undefined' ? window : globalThis)

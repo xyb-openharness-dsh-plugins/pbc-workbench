@@ -21,6 +21,7 @@
  */
 
 import { AGENT_PANE } from '../lib/layout.js'
+import { criteriaOf, factsOf, matchAll } from '../lib/trial-match.js'
 
 const jp = (s, fallback = null) => {
   if (s === null || s === undefined) return fallback
@@ -237,6 +238,19 @@ export function bootstrap(db, { version, build } = {}) {
   const meta = {}
   for (const r of rows(db, 'SELECT key, value FROM demo_meta')) meta[r.key] = r.value
 
+  /* 临床试验三档对照：与原型共用 `lib/trial-match.js` 的**同一个纯函数**，
+     不在前端再写一份（两份一定会分叉，而且分叉时没人看得出来）。
+     放在 bootstrap 顶层（不进 profiles）：profiles 的形状被 demo-parity 逐字段钉住，
+     往里加键会让 parity 红，而 parity 红是对的——profiles 只放"档案事实"，
+     "对照结论"是派生结果，属于另一个键。 */
+  const trialMatch = Object.fromEntries(profiles.map((p) => [
+    p.key,
+    matchAll(
+      (p.trials ?? []).map((t) => ({ ...t, criteria: criteriaOf(t) })),
+      factsOf(p),
+    ),
+  ]))
+
   return {
     version: version ?? null,
     build: build ?? null,
@@ -244,6 +258,8 @@ export function bootstrap(db, { version, build } = {}) {
     sourceStates,
     /* 试验记录是全局池 + 档案收藏，界面按档案取 */
     demo_meta: meta,
+    /* 三档对照结果（按档案 key 分组）。派生量，不进 profiles。 */
+    trialMatch,
     /* 宿主未提供原生会话时这里会是 available:false；开发版自带挂载位演示，所以默认 true。 */
     agent: { available: true, mode: 'dev-mount' },
     layout: { agentPane: AGENT_PANE },

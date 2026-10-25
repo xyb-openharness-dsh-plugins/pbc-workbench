@@ -21,6 +21,7 @@ const ROOT = join(HERE, '..')
 /* 分节标题只有一份来源（lib/screening-titles.js）：播种、读模型、演示数据三处共用。
    各写一份中文标题的话，改一处漏两处不会报错，只会看起来像两份不同的资料。 */
 import { screeningTitle } from '../lib/screening-titles.js'
+import { criteriaOf, factsOf, matchAll } from '../lib/trial-match.js'
 
 /** 固定种子线性同余：保证重跑一致。 */
 function lcg(seed) {
@@ -286,8 +287,14 @@ export function buildDemoProfiles() {
 const HEADER = `/* 由 demo/build-demo-data.mjs 生成，勿手改。重跑：npm run demo:data */\n`
 
 export function renderDemoModule(profiles) {
+  /* 三档对照与服务器共用 lib/trial-match.js 的同一个纯函数：
+     原型里也要看得见"符合/冲突/待确认"，否则 G2 签认时评的是另一套界面。 */
+  const trialMatch = Object.fromEntries(profiles.map((p) => [
+    p.key,
+    matchAll((p.trials ?? []).map((t) => ({ ...t, criteria: criteriaOf(t) })), factsOf(p)),
+  ]))
   // 原型用 **经典脚本**（file:// 下 ESM import 会被 CORS 拦），所以产物挂全局而不是 export。
-  const payload = JSON.stringify({ generatedAt: 'fixed-for-reproducibility', profiles }, null, 2)
+  const payload = JSON.stringify({ generatedAt: 'fixed-for-reproducibility', profiles, trialMatch }, null, 2)
   return `${HEADER}(function (root) {\n  const DEMO = ${payload}\n  root.DEMO = DEMO\n})(typeof window !== 'undefined' ? window : globalThis)\n`
 }
 
