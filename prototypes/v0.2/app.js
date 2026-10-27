@@ -219,6 +219,12 @@
     const p = (n) => String(n).padStart(2, '0')
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
   }
+  /* 锚点派生：状态卡大字只从"开始用药日"算，不手填天数。 */
+  function daysSince(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00')
+    const today = new Date(localToday() + 'T00:00:00')
+    return Math.max(0, Math.round((today - d) / 86400000))
+  }
   function kv(k, v, n) {
     return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${v}</span>${n ? `<span class="n">${esc(n)}</span>` : ''}</div>`
   }
@@ -235,7 +241,19 @@
     const lastLabs = p.labs[p.labs.length - 1]
     const lastSym = allSymptoms()[0]
     const answers = p.questions.filter((q) => !q.done).length
+    const anchor = p.startedAt || ''
+    const dayN = anchor ? daysSince(anchor) : null
+    const phase = p.label.includes('·') ? p.label.split('·').pop().trim() : p.label
     return `
+      <div class="card">
+        <div class="card-head"><span class="muted">${dayN == null ? '状态卡 · 待初始化' : `D+${dayN} 状态卡 · 距参考复查节点`}</span></div>
+        <div style="font-size:28px;font-weight:700;color:var(--brand);line-height:1.2">${dayN == null ? '待初始化' : `第 ${dayN} 天`}</div>
+        <p class="muted" style="margin-top:4px">${dayN == null ? '还没有起点日期：先在「我的病底」补诊断日与开始用药日（三步向导）' : `阶段：${esc(phase)} · 长期病程 · 下次：2026-11-08（参考复查节点）`}</p>
+        <div class="actions-row" style="margin-top:8px">
+          <button class="btn" type="button" data-goto="${dayN == null ? 'basics/diagnosis' : 'followup/cadence'}">${dayN == null ? '去补齐档案 →' : '看复查节奏（参考节点）→'}</button>
+          <button class="btn ghost" type="button" data-primer-open aria-label="疾病概要：定义、医学资料与指南情况、治疗全景、发展趋势">疾病概要：原发性胆汁性胆管炎是什么？</button>
+        </div>
+      </div>
       <div class="row-3">
         <div class="card">
           <div class="card-head"><span class="card-title">今天怎么样</span>${aiButton('我今天不太舒服，想记一笔', '看板·今天怎么样')}</div>

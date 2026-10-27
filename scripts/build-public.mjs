@@ -23,7 +23,7 @@ const SRC = join(ROOT, 'prototypes', 'v0.2')
 const OUT = join(ROOT, 'public')
 
 /* 纯复制、零改动的文件。 */
-const VERBATIM = ['style.css', 'demo-data.js']
+const VERBATIM = ['style.css', 'demo-data.js', 'primer.css', 'primer.js', 'primer-data.js']
 
 /**
  * `index.html` 的定点替换。

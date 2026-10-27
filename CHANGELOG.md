@@ -2,6 +2,25 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.2.8 — 2026-10-27（36 号 v2 引入：疾病概要 + 状态卡）
+
+按批次 2「从零引入」把 36 号疾病概要接到本仓：原型 `prototypes/v0.2/` 新增 `primer.js` / `primer.css` /
+`primer-data.js` 三件套，顶栏加「?」入口，看板首卡补状态卡四件；`public/` 由 `build-public.mjs`
+逐字节复制 primer 三件套，装机 iframe 层与原型同源。
+
+- 浮窗四段固定 `definition → evidence → landscape → trend`；内容只取 README、`docs/SPEC.md`、
+  `docs/BRIEF.md`、`docs/CLINICAL-DATA-2026.md`、`docs/GUIDELINE-BRIDGE.md`、`assets/reference/ctcae/README.md`，
+  不写判定、不复制指南条文。
+- 链接：**0 条外链**，11 项来源/原件全部 `nolink:true` + note。原因如实写进数据：
+  - CTCAE v5.0 Quick Reference：仓库内已有 PDF；官方 `dctd.cancer.gov/.../ctcae-v5-5x7.pdf`
+    实测 `application/pdf`，但批次 `verify-links.mjs` 对 PDF 判 `THIN`，按规则不计可达；
+  - 中华医学会肝病学分会 PBC 指南（2021）：本仓无原件，存在性未核实（GUIDELINE-BRIDGE 四问筛不通过）。
+- 状态卡：eyebrow `D+N 状态卡 · 距参考复查节点`、大字天数由 `startedAt` 派生（无锚点显示「待初始化」+
+  三步引导）、现状行、出口按钮排（主按钮进复查节奏，副按钮打开疾病概要）。
+- 闸门：新增 `scripts/check-primer-links.mjs`（含 `--self-test` 10/10）并接入 `npm run check`；
+  新增 `scripts/probe-disease-primer.mjs`（P1–P9 + E0，只放行静态服务下 `/api/.../bootstrap` 404）。
+- 实测：原型 probe **10/10**、`public/` 静态页 probe **10/10**、`npm run check` 退出 0（114 test 全绿）。
+
 ## 0.1.0 — 2026-10-25
 
 - 由社区脚手架 dsh-wb-cli@1.5.4 初始化，仅有注册骨架与健康接口，无业务功能。

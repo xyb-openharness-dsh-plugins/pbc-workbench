@@ -1,6 +1,6 @@
 {
   "name": "@ductpal-dsh/pbc-workbench",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "原发性胆汁性胆管炎（PBC）患者工作台：把生化序列、治疗与应答记录、乏力瘙痒与并发症筛查整理成可核对、可带去门诊的资料（本机优先）",
   "private": true,
   "type": "module",
@@ -24,7 +24,7 @@
     "research/pbc-cancer/pbc_cancer_trials_2026.sqlite"
   ],
   "scripts": {
-    "check": "npm run build-version && npm run build-public && npm run build-demo && node scripts/check-version.mjs && node scripts/check-syntax.mjs && node scripts/check-schema.mjs && node scripts/check-wording.mjs && node scripts/check-demo-columns.mjs && node scripts/build-client.mjs --check && node --disable-warning=ExperimentalWarning --test test/*.test.mjs && node scripts/check-host-contract.mjs && node scripts/check-workbench-package.mjs .",
+    "check": "npm run build-version && npm run build-public && npm run build-demo && node scripts/check-version.mjs && node scripts/check-syntax.mjs && node scripts/check-schema.mjs && node scripts/check-wording.mjs && node scripts/check-demo-columns.mjs && node scripts/build-client.mjs --check && node --disable-warning=ExperimentalWarning --test test/*.test.mjs && node scripts/check-host-contract.mjs && node scripts/check-workbench-package.mjs . && node scripts/check-primer-links.mjs",
     "check-host": "node scripts/check-host-contract.mjs",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.mjs",
     "audit": "node scripts/check-conformance.mjs .",
@@ -33,6 +33,7 @@
     "probe:artifact": "node scripts/serve-artifact.mjs",
     "probe:tabs": "python3 scripts/verify-tabs-on-artifact.py",
     "probe:page-view": "node scripts/probe-page-view.mjs",
+    "probe:primer": "node scripts/probe-disease-primer.mjs",
     "demo:data": "node demo/build-demo-data.mjs",
     "probe:proto": "python3 scripts/probe-prototype.py",
     "shots:readme": "python3 scripts/shoot-readme.py",
