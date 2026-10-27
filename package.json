@@ -1,6 +1,6 @@
 {
   "name": "@ductpal-dsh/pbc-workbench",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "原发性胆汁性胆管炎（PBC）患者工作台：把生化序列、治疗与应答记录、乏力瘙痒与并发症筛查整理成可核对、可带去门诊的资料（本机优先）",
   "private": true,
   "type": "module",

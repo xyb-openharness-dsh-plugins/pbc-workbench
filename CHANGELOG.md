@@ -2,6 +2,25 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.2.9 — 2026-10-27（0.2.8 链接返工：指南改为可点）
+
+用户指出 0.2.8「0 条外链、11 处全 nolink」不满足「指南可点」，不能直接装机。本轮按机构重新检索并逐条用
+`verify-links.mjs` 真浏览器验活，**只收 OK**：
+
+- **6 个唯一可点链接**（evidence 表 5 个 + trend 二次来源 1 个）：
+  - AASLD 官方指南页（2018 版 + 2021 更新，hub，PDF 在页内下载）
+  - EASL 官方指南页（2017，hub；全文需 MyEASL 账号，note 写清）
+  - 中华医学会肝病学分会《原发性胆汁性胆管炎的诊断和治疗指南（2021）》期刊全文页（kind: fulltext）
+  - 国家卫生健康委员会《原发性胆汁性胆管炎诊疗指南（2025年版）》期刊全文页（kind: fulltext）
+  - NCI CTEP 的 CTCAE 文档页（HTML，hub；PDF/XLSX 页内下载）
+  - ClinicalTrials.gov 的 PBC 检索页（trend 段二次核验入口，明确「本轮 ctv 未查、不计入 479 条」）
+- **NICE 仍 nolink + note**：NICE 官网 BNF / CKS / TA 对本机 IP 返回 403（地区限制），`verify-links` 判 AUTH，
+  按规则不计可达；也未检索到 PBC 专属 NG/CG。没有编 URL，也没有拿栏目首页冒充原件。
+- 口径修正：`definition` 不再写「指南原文未取得」；`landscape` 明确「本轮只接入指南可点入口，未按原文整理」；
+  `trend` 增加 2026-10-27 的接入事实与 ClinicalTrials.gov 二次核验入口。
+- 闸门：`check-primer-links` 静态 24/24、`--http --timeout 60000` 30/30、`--self-test` 10/10；
+  probe 原型 10/10、`public/` 10/10；`npm run check` 退出 0。
+
 ## 0.2.8 — 2026-10-27（36 号 v2 引入：疾病概要 + 状态卡）
 
 按批次 2「从零引入」把 36 号疾病概要接到本仓：原型 `prototypes/v0.2/` 新增 `primer.js` / `primer.css` /

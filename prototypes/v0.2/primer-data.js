@@ -1,9 +1,11 @@
 /* 36 号 · 疾病概要数据（window.DISEASE_PRIMER）
  *
- * 内容口径（2026-10-27）：
+ * 内容口径（2026-10-27 返工）：
  *   - 四段固定顺序 definition → evidence → landscape → trend，缺段不删；
- *   - 只取本仓 README 与 docs/ 里已经写明的说法，不写判定、不复制指南条文、不编 URL；
- *   - 每段必须有 sources；没有可验证链接的条目写 nolink:true + note，不拿栏目页冒充原件。
+ *   - 病种内容只写本仓 README 与 docs/ 已写明的说法，不写判定、不复制指南条文；
+ *   - 指南链接按「官方指南页 / 期刊全文页 / 未取得原件」三态如实标注：
+ *     官方页是 hub，不冒充原件；期刊全文页标 kind:'fulltext'；打不开的标 nolink + note；
+ *   - 每条外链都跑过 primer-backfill-2026-10-27/verify-links.mjs，只收 OK。
  * 数据来源：README.md、docs/SPEC.md、docs/BRIEF.md、docs/CLINICAL-DATA-2026.md、
  *           docs/GUIDELINE-BRIDGE.md、assets/reference/ctcae/README.md。
  */
@@ -21,47 +23,100 @@ window.DISEASE_PRIMER = {
         '本仓面向已确诊 PBC 的成人患者本人，照护者可选用同一套记录。',
         '生化线按每张化验单自带的参考上限对照（×ULN 口径），不借用通用上限。',
         '瘙痒与乏力在本仓作为独立功能线按天记录，与同日指标只并列、不推断。',
-        '疾病定义的指南原文未取得（未核实），本段不引用指南条文。',
+        '本段只写仓内已写明的疾病事实；不复制指南条文、不做定义或分期判定。',
       ],
       sources: [
-        { org: '本仓 README', doc: '疾病概要 · 定义', version: '0.2.7', nolink: true, note: '仓内文档，无公开 URL' },
+        { org: '本仓 README', doc: '疾病概要 · 定义', version: '0.2.9', nolink: true, note: '仓内文档，无公开 URL' },
         { org: '本仓 docs/SPEC.md', doc: '项目规格 §1 问题、用户与最小闭环', nolink: true, note: '仓内文档，无公开 URL' },
       ],
     },
     {
       id: 'evidence',
       title: '医学资料规范和指南情况',
-      intro: '本台只把已经拿到的标准与指南列在下表；没有原件的行如实标「未取得原件」，不写页码、不引用条文。',
+      intro: '本台把可公开点开的指南页 / 期刊全文页与「未取得原件」分开标注；不写页码、不复制条文，也不把栏目页冒充原件。',
       table: {
         head: ['机构', '文件', '版本 / 年份', '原件', '本台用途'],
         rows: [
+          [
+            'AASLD（美国肝病研究学会）',
+            'Primary Biliary Cholangitis: 2018 Practice Guidance / 2021 Practice Guidance Update',
+            '2018 版 / 2021 更新',
+            {
+              text: '官方指南页（含 2018 版与 2021 更新）',
+              kind: 'hub',
+              url: 'https://www.aasld.org/practice-guidelines/primary-biliary-cholangitis',
+              note: 'AASLD 官方页；PDF 在页内下载，本仓未逐条引用条文',
+            },
+            '指南版本与治疗手段的并列引用（不引页码）',
+          ],
+          [
+            'EASL（欧洲肝病学会）',
+            'EASL Clinical Practice Guidelines: The diagnosis and management of patients with primary biliary cholangitis',
+            '2017',
+            {
+              text: '官方指南页（需 MyEASL 账号）',
+              kind: 'hub',
+              url: 'https://easl.eu/publication/the-diagnosis-and-management-of-patients-with-primary-biliary-cholangitis/',
+              note: '全文需 MyEASL 账号；本仓未取得原件',
+            },
+            '指南版本与治疗手段的并列引用（不引页码）',
+          ],
+          [
+            '中华医学会肝病学分会',
+            '原发性胆汁性胆管炎的诊断和治疗指南（2021）',
+            '2021（发表于 2022）',
+            {
+              text: '期刊全文页（2021）',
+              kind: 'fulltext',
+              url: 'https://www.lcgdbzz.com/cn/article/doi/10.3760/cma.j.cn112138-20211112-00794',
+              note: '临床肝胆病杂志 2022;38(1):35-41；公开全文页，本仓未存 PDF',
+            },
+            '中文指南版本事实与条目背景',
+          ],
+          [
+            '国家卫生健康委员会',
+            '原发性胆汁性胆管炎诊疗指南（2025年版）',
+            '2025 年版',
+            {
+              text: '期刊全文页（2025）',
+              kind: 'fulltext',
+              url: 'https://cjournal.hep.com.cn/1001-5256/CN/10.12449/JCH250805',
+              note: '临床肝胆病杂志 2025;41(8):1504-1506；公开全文页，本仓未存 PDF',
+            },
+            '最新版版本事实',
+          ],
+          [
+            'NICE（英国国家卫生与临床优化研究所）',
+            'PBC 专属指南（NG / CG）',
+            '未检索到专属 NG/CG',
+            {
+              text: '未取得原件',
+              nolink: true,
+              note: 'NICE 官网 BNF / CKS / TA 页对本机 IP 返回 403 地区限制，AUTH 不算可达；本轮未取得可点原件',
+            },
+            '本版暂不引用',
+          ],
           [
             '美国国家癌症研究所（NCI）',
             'CTCAE v5.0 Quick Reference（5x7）',
             'v5.0（2017）',
             {
-              text: '仓库内已存 PDF；官方直链未通过验活',
-              nolink: true,
-              note: 'assets/reference/ctcae/ 内有 PDF；官方 dctd.cancer.gov 直链实测为 application/pdf，但真浏览器验活判 THIN，按批次规则不计可达',
+              text: '官方 CTCAE 文档页（HTML）',
+              kind: 'hub',
+              url: 'https://ctep.cancer.gov/protocoldevelopment/electronic_applications/ctc.htm',
+              note: 'NCI CTEP 官方页；Quick Reference PDF/XLSX 在页内下载，本仓另有仓库内 PDF',
             },
             '化验分级对照（仅启用有绝对数值界限的项）',
-          ],
-          [
-            '中华医学会肝病学分会',
-            '原发性胆汁性胆管炎诊断和治疗指南',
-            '2021',
-            {
-              text: '未取得原件',
-              nolink: true,
-              note: '本仓无原件；存在性未核实，四问筛不通过（docs/GUIDELINE-BRIDGE.md）',
-            },
-            '指南出处层未接入，界面不出现指南页码',
           ],
         ],
       },
       sources: [
-        { org: '美国国家癌症研究所（NCI）', doc: 'CTCAE v5.0 Quick Reference（5x7）', version: '2017', nolink: true, note: '本仓 assets/reference/ctcae/ 内有 PDF；官方在线直链未通过批次验活' },
-        { org: '中华医学会肝病学分会', doc: '原发性胆汁性胆管炎诊断和治疗指南', version: '2021', nolink: true, note: '本仓未取得原件（docs/GUIDELINE-BRIDGE.md）' },
+        { org: 'AASLD', doc: 'PBC 2018 Practice Guidance / 2021 Update', original: false, secondaryUrl: 'https://www.aasld.org/practice-guidelines/primary-biliary-cholangitis', note: '官方指南页（hub），原件 PDF 未逐条引用' },
+        { org: 'EASL', doc: 'PBC Clinical Practice Guidelines 2017', original: false, secondaryUrl: 'https://easl.eu/publication/the-diagnosis-and-management-of-patients-with-primary-biliary-cholangitis/', note: '官方指南页；全文需 MyEASL 账号' },
+        { org: '中华医学会肝病学分会', doc: '原发性胆汁性胆管炎的诊断和治疗指南（2021）', original: true, kind: 'fulltext', url: 'https://www.lcgdbzz.com/cn/article/doi/10.3760/cma.j.cn112138-20211112-00794' },
+        { org: '国家卫生健康委员会', doc: '原发性胆汁性胆管炎诊疗指南（2025年版）', original: true, kind: 'fulltext', url: 'https://cjournal.hep.com.cn/1001-5256/CN/10.12449/JCH250805' },
+        { org: 'NICE', doc: 'PBC 专属指南（NG / CG）', nolink: true, note: 'NICE 官网对本机 IP 403（地区限制），无法验活' },
+        { org: '美国国家癌症研究所（NCI）', doc: 'CTCAE v5.0 Quick Reference（5x7）', version: '2017', nolink: true, note: '仓库内已有 PDF；官方 HTML 文档页见本段表格' },
       ],
     },
     {
@@ -86,7 +141,7 @@ window.DISEASE_PRIMER = {
         {
           label: '指南列举的其他治疗手段',
           points: [
-            '本台尚未整理：中文指南原件未取得，未接入任何指南条文与页码。',
+            '本台尚未按指南原文整理；本轮只接入指南的可点入口（见上一段），不复制条文、不排序、不比优劣。',
           ],
         },
       ],
@@ -106,12 +161,14 @@ window.DISEASE_PRIMER = {
       points: [
         '截至 2026-10-25，临床试验库 6 个来源中查过 2 个：CDE 命中 41 条、WHO ICTRP 命中被单次上限截断（只取前 200 条）；落库 479 条（CDE 93 + ICTRP 386）。',
         '2026-10-25 采集的数据截止日为 2026-10-25；ChiCTR 在线、ChiCTR 离线语料、XYB 归档、ClinicalTrials.gov 深度通道均未查过。',
-        '截至 2026-10-27，中文指南原件仍未取得（四问筛不通过），本仓未接入指南页码层。',
+        '截至 2026-10-27，已接入 AASLD 2018/2021、EASL 2017、中华医学会 2021、国家卫健委 2025 指南的可点入口；指南条文与页码层仍未接入。',
         '本仓当前分级只对照 CTCAE v5.0；GLOBE、UK-PBC、巴黎、巴塞罗那等应答评分不在本仓计算范围。',
+        '公开二次核验入口：ClinicalTrials.gov 的 PBC 检索页（检索于 2026-10-27）；本仓本轮 ctv 通道未查，检索页结果不计入上述 479 条。',
       ],
       sources: [
         { org: '本仓 docs/CLINICAL-DATA-2026.md', doc: '临床数据（试验库）· PBC · 2026', version: '2026-10-25', nolink: true, note: '仓内文档，无公开 URL' },
         { org: '本仓 docs/GUIDELINE-BRIDGE.md', doc: '指南桥 · 四问筛结果', nolink: true, note: '仓内文档，无公开 URL' },
+        { org: 'ClinicalTrials.gov', doc: 'Primary Biliary Cholangitis 检索页', original: false, secondaryUrl: 'https://clinicaltrials.gov/search?cond=Primary%20Biliary%20Cholangitis', note: '公开检索入口；本轮 ctv 通道未查，结果不计入 479 条' },
       ],
     },
   ],
