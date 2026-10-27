@@ -30,8 +30,8 @@
               aria-label="疾病概要：定义、医学资料与指南情况、治疗全景、发展趋势"
               title="疾病概要：定义 · 指南 · 治疗全景 · 趋势">?</button>
       <button class="btn ghost" id="profile-btn" type="button" aria-haspopup="listbox">切换档案</button>
-      <button class="btn" id="btn-ai" type="button" data-state="ready">AI 对话</button>
-      <button class="icon-btn" id="btn-ai-hide" type="button" aria-label="收起 AI 对话">×</button>
+      <!-- AI 对话＝宿主原生会话（页面不自建聊天窗） -->
+      <button class="btn" id="btn-ai" type="button" data-state="ready" aria-label="AI 对话：请宿主打开原生会话">对话</button>
     </div>
   </header>
 
@@ -41,23 +41,6 @@
       <div class="subtabs" id="subtabs" role="tablist" aria-label="子页"></div>
       <section class="view" id="view"></section>
     </main>
-    <div class="splitter" id="agent-splitter" role="separator" aria-orientation="vertical"
-         aria-valuemin="25" aria-valuemax="45" aria-valuenow="35" aria-label="调整 AI 面板宽度" tabindex="0"></div>
-    <aside class="agent" id="agent" aria-label="AI 对话">
-      <div class="agent-head">
-        <strong>AI 对话</strong>
-        <span class="agent-hint" id="agent-hint">示例按钮只把提示词放进输入框，不会自动发送</span>
-      </div>
-      <div class="agent-body" id="agent-body">
-        <div class="msg ai">我是这个工作台的助手。你可以说「今天痒 6 分，晚上更重」，或者点页面里的「AI 帮我填」。</div>
-        <div class="msg me">上次的单子找不到，能帮我理一下吗</div>
-        <div class="msg ai">可以：在「报告与资料 → 导入」选文件，我会先把能认出的项目列成候选，你逐项核对再保存。</div>
-      </div>
-      <div class="agent-input">
-        <textarea id="agent-text" rows="2" placeholder="说一句话（Enter 发送，Shift+Enter 换行）"></textarea>
-        <button class="btn" id="agent-send" type="button">发送</button>
-      </div>
-    </aside>
   </div>
 
   <footer class="footer">
@@ -80,6 +63,7 @@
 <script src="demo-data.js"></script>
 <script src="primer-data.js"></script>
 <script src="app.js"></script>
+<script src="bridge.js"></script>
 <script src="primer.js"></script>
 </body>
 </html>

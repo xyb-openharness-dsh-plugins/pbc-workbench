@@ -1115,10 +1115,9 @@
       const ctx = draftContext(b.dataset.ctx)
       const detail = { prompt, context: ctx, channel: EVT_DRAFT }
       document.dispatchEvent(new CustomEvent(EVT_DRAFT, { detail }))
-      const ta = $('#agent-text')
-      ta.value = `${prompt}\n\n【病情上下文】${ctx}`
-      ta.focus()
-      toast('已把提示词放进输入框（不会自动发送）')
+      toast((window.parent !== window)
+        ? '已把这一页的要点交给原生会话草稿（未自动发送）'
+        : '独立打开时没有会话面板：这条上下文只在 DSH Desktop 里能带进 AI 对话')
     }))
     const saveItch = $('#save-itch')
     if (saveItch) saveItch.addEventListener('click', () => {
@@ -1228,18 +1227,20 @@
   }
 
   /* ------------------------------ AI 面板 ------------------------------ */
+  /* 页面不再自建 AI 面板：这里只保留宿主入口与草稿转发（scripts 34 号 §2b） */
   function applyAgentWidth() {
     const frame = $('#frame')
-    if (state.agentOpen) frame.style.setProperty('--agent-w', state.agentWidth + '%')
-    frame.classList.toggle('agent-hidden', !state.agentOpen)
-    $('#btn-ai').textContent = state.agentOpen ? '收起 AI 对话' : '打开 AI 对话'
-    $('#btn-ai').dataset.state = state.agentOpen ? 'open' : 'closed'
+    if (frame) frame.classList.add('agent-hidden')
+    const btn = $('#btn-ai')
+    if (btn) { btn.textContent = '对话'; btn.dataset.state = 'ready' }
   }
   function clampAgentWidth(w) { return Math.max(25, Math.min(45, Math.round(w))) }
 
   function bindShell() {
-    $('#btn-ai').addEventListener('click', () => { state.agentOpen = !state.agentOpen; applyAgentWidth() })
-    $('#btn-ai-hide').addEventListener('click', () => { state.agentOpen = false; applyAgentWidth() })
+    $('#btn-ai').addEventListener('click', () => {
+      if (window.parent === window) return toast('独立打开时没有会话面板：在 DSH Desktop 里打开工作台即可对话')
+      try { window.parent.postMessage({ type: 'pbc:agent-open' }, window.location.origin) } catch (e) { toast('没能请出会话面板') }
+    })
     $('#profile-btn').addEventListener('click', () => {
       state.profileKey = state.profileKey === 'A' ? 'B' : 'A'
       state.localSymptoms = []
@@ -1247,46 +1248,34 @@
       render(); $('#footer-profile').textContent = profile().label
     })
     const sp = $('#agent-splitter')
-    sp.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        e.preventDefault()
-        state.agentWidth = clampAgentWidth(state.agentWidth + (e.key === 'ArrowLeft' ? 2 : -2))
+    if (sp) {
+  
+      sp.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault()
+          state.agentWidth = clampAgentWidth(state.agentWidth + (e.key === 'ArrowLeft' ? 2 : -2))
+          sp.setAttribute('aria-valuenow', state.agentWidth)
+          applyAgentWidth(); localStorage.setItem('pbc.agentWidth', String(state.agentWidth))
+        }
+        if (e.key === 'Home') { state.agentWidth = 45; applyAgentWidth() }
+        if (e.key === 'End') { state.agentWidth = 25; applyAgentWidth() }
+      })
+      let dragging = false
+      sp.addEventListener('mousedown', () => { dragging = true; document.body.style.userSelect = 'none' })
+      window.addEventListener('mousemove', (e) => {
+        if (!dragging) return
+        const rect = $('#frame').getBoundingClientRect()
+        const w = ((rect.right - e.clientX) / rect.width) * 100
+        state.agentWidth = clampAgentWidth(w)
         sp.setAttribute('aria-valuenow', state.agentWidth)
-        applyAgentWidth(); localStorage.setItem('pbc.agentWidth', String(state.agentWidth))
-      }
-      if (e.key === 'Home') { state.agentWidth = 45; applyAgentWidth() }
-      if (e.key === 'End') { state.agentWidth = 25; applyAgentWidth() }
-    })
-    let dragging = false
-    sp.addEventListener('mousedown', () => { dragging = true; document.body.style.userSelect = 'none' })
-    window.addEventListener('mousemove', (e) => {
-      if (!dragging) return
-      const rect = $('#frame').getBoundingClientRect()
-      const w = ((rect.right - e.clientX) / rect.width) * 100
-      state.agentWidth = clampAgentWidth(w)
-      sp.setAttribute('aria-valuenow', state.agentWidth)
-      applyAgentWidth()
-    })
-    window.addEventListener('mouseup', () => {
-      if (!dragging) return
-      dragging = false; document.body.style.userSelect = ''
-      localStorage.setItem('pbc.agentWidth', String(state.agentWidth))
-    })
-    $('#agent-send').addEventListener('click', () => {
-      const ta = $('#agent-text')
-      const v = ta.value.trim()
-      if (!v) return toast('先写一句')
-      const body = $('#agent-body')
-      const me = document.createElement('div'); me.className = 'msg me'; me.textContent = v; body.appendChild(me)
-      const ai = document.createElement('div'); ai.className = 'msg ai'
-      ai.textContent = '（原型演示）我收到了。真实会话在开发版由宿主原生 Agent 接管，这里不会假装能回答医学问题。'
-      body.appendChild(ai)
-      body.scrollTop = body.scrollHeight
-      ta.value = ''
-    })
-    $('#agent-text').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#agent-send').click() }
-    })
+        applyAgentWidth()
+      })
+      window.addEventListener('mouseup', () => {
+        if (!dragging) return
+        dragging = false; document.body.style.userSelect = ''
+        localStorage.setItem('pbc.agentWidth', String(state.agentWidth))
+      })
+    }
     $('#page-back').addEventListener('click', () => closePage())
     $('#page-close').addEventListener('click', () => closePage())
     window.addEventListener('popstate', () => {
