@@ -156,6 +156,10 @@
         color: SPLITTER_BRAND, opacity: 0.9, pointerEvents: 'none', userSelect: 'none',
       }
       var splitterFocusStyle = Object.assign({}, splitterStyle, { background: '#C9CFB0' })
+      var dragShieldStyle = {
+        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 4,
+        cursor: 'col-resize', background: 'transparent', touchAction: 'none',
+      }
       var fallbackStyle = { padding: 24, color: '#3F4A2B', fontSize: 14, lineHeight: 1.7 }
       var buttonStyle = {
         border: 0, borderRadius: 999, padding: '5px 14px', whiteSpace: 'nowrap',
@@ -522,18 +526,6 @@
             ),
             /* 原生会话**始终挂载**：卸载会丢掉输入框与草稿状态（宿主明确要求不重挂输入树），
                所以隐藏走 display，不卸载组件。 */
-            h('aside', {
-              style: Object.assign({}, paneStyle,
-                narrow ? drawerStyle : null,
-                { width: narrow ? 'min(92%, ' + DRAWER_MAX + 'px)' : percent + '%' },
-                { display: paneVisible ? 'flex' : 'none' }),
-              'aria-label': '对话',
-              'aria-hidden': paneVisible ? undefined : 'true',
-            }, conversation || h('div', { style: padStyle },
-              h('b', null, '对话还没开始'),
-              h('span', null, '点顶栏「打开对话」调起 DSH 原生会话后，它会固定出现在这一侧。'),
-              h('span', null, '没有会话也不影响记录：左边的化验、生化线、痒与累、复查节奏照常可用。'),
-            )),
             /* splitter 只在宽屏出现：窄屏是覆盖式抽屉，拖宽没有意义。 */
             !narrow && paneVisible && h('div', {
               role: 'separator',
@@ -549,6 +541,19 @@
               onPointerLeave: function () { setHovering(false) },
               onKeyDown: onSplitterKeyDown,
             }, (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
+            dragging && !narrow && h('div', { 'aria-hidden': 'true', style: dragShieldStyle }),
+            h('aside', {
+              style: Object.assign({}, paneStyle,
+                narrow ? drawerStyle : null,
+                { width: narrow ? 'min(92%, ' + DRAWER_MAX + 'px)' : percent + '%' },
+                { display: paneVisible ? 'flex' : 'none' }),
+              'aria-label': '对话',
+              'aria-hidden': paneVisible ? undefined : 'true',
+            }, conversation || h('div', { style: padStyle },
+              h('b', null, '对话还没开始'),
+              h('span', null, '点顶栏「打开对话」调起 DSH 原生会话后，它会固定出现在这一侧。'),
+              h('span', null, '没有会话也不影响记录：左边的化验、生化线、痒与累、复查节奏照常可用。'),
+            )),
           ),
         )
       }
