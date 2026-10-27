@@ -125,8 +125,35 @@
       }
       var drawerStyle = { position: 'absolute', top: 0, right: 0, bottom: 0, zIndex: 3, boxShadow: '-8px 0 24px rgba(63,74,43,0.14)' }
       var splitterStyle = {
-        flex: '0 0 auto', width: 6, cursor: 'col-resize', background: '#EDEBE0',
+        flex: '0 0 auto', width: 10, cursor: 'col-resize', background: '#EDEBE0',
         borderLeft: '1px solid #E1DFD2', borderRight: '1px solid #E1DFD2', touchAction: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        transition: 'background .15s ease, box-shadow .15s ease',
+      }
+
+      /* 分隔线（全家族统一行为）：悬停显示本工作台同色系增亮色 + 拖动把手；按住左右拖动调 AI 面板宽度 */
+      var SPLITTER_BRAND = '#3F4A2B'
+      var splitterMix = (hex, ratio) => {
+        const n = parseInt(String(hex).replace('#', ''), 16)
+        const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+        const mix = (c) => Math.round(c + (255 - c) * ratio)
+        return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
+      }
+      var splitterHoverStyle = {
+        ...splitterStyle,
+        background: splitterMix(SPLITTER_BRAND, 0.55),
+        borderLeft: `1px solid ${splitterMix(SPLITTER_BRAND, 0.25)}`,
+        borderRight: `1px solid ${splitterMix(SPLITTER_BRAND, 0.25)}`,
+        boxShadow: `0 0 0 1px ${splitterMix(SPLITTER_BRAND, 0.6)}`,
+      }
+      var splitterDragStyle = {
+        ...splitterHoverStyle,
+        background: splitterMix(SPLITTER_BRAND, 0.42),
+        boxShadow: `0 0 0 2px ${splitterMix(SPLITTER_BRAND, 0.7)}`,
+      }
+      var splitterGripStyle = {
+        fontSize: 13, lineHeight: 1, letterSpacing: '0px', fontWeight: 700,
+        color: SPLITTER_BRAND, opacity: 0.9, pointerEvents: 'none', userSelect: 'none',
       }
       var splitterFocusStyle = Object.assign({}, splitterStyle, { background: '#C9CFB0' })
       var fallbackStyle = { padding: 24, color: '#3F4A2B', fontSize: 14, lineHeight: 1.7 }
@@ -263,6 +290,9 @@
         var ds = React.useState(false)
         var dragging = ds[0]
         var setDragging = ds[1]
+        var hs = React.useState(false)
+        var hovering = hs[0]
+        var setHovering = hs[1]
 
         var brokenTimer = React.useRef(null)
         var shellRef = React.useRef(null)
@@ -338,6 +368,7 @@
 
         function onSplitterPointerDown(event) {
           event.preventDefault()
+          try { event.currentTarget.setPointerCapture(event.pointerId) } catch (e) { /* 旧宿主降级 */ }
           dragHostRef.current = shellRef.current
           setDragging(true)
         }
@@ -512,10 +543,12 @@
               'aria-valuemax': Math.round(AGENT_MAX),
               'aria-valuenow': percent,
               tabIndex: 0,
-              style: dragging ? splitterFocusStyle : splitterStyle,
+              style: dragging ? splitterDragStyle : hovering ? splitterHoverStyle : splitterStyle,
               onPointerDown: onSplitterPointerDown,
+              onPointerEnter: function () { setHovering(true) },
+              onPointerLeave: function () { setHovering(false) },
               onKeyDown: onSplitterKeyDown,
-            }),
+            }, (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
           ),
         )
       }
