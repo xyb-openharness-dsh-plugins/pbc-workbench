@@ -126,3 +126,17 @@ test('⑨ 原型必须冻结：prototypes/v0.2 的版本号不许跟着 package.
   assert.equal(protoVer, '0.1.0', '原型版本号冻结在 0.1.0（它是视觉基准，不许随发版改动）')
   assert.ok(typeof pkg.version === 'string')
 })
+
+/* ⑩ 是 2026-10-27 装机实测补的：页面顶栏「对话」发的是 `pbc:agent-open`，
+   而宿主外壳此前只认 `pbc:agent-draft`，于是装机后点「对话」**一点反应都没有**——
+   页面明明有入口，用户看到的是"没有 AI"。两侧的接线必须一起断言：
+   只查页面有按钮不够，只查外壳有监听也不够。 */
+test('⑩ 顶栏只有一个 AI 入口；嵌入式只 postMessage，宿主侧必须接住 agent-open', () => {
+  const index = read('public/index.html')
+  assert.equal((index.match(/id="btn-ai"/g) || []).length, 1, '顶栏应只有一个 AI 入口（id="btn-ai"）')
+  assert.ok(!/<textarea/i.test(index), '页面里不许有输入框：会话在宿主原生面板')
+  assert.ok(!/>发送</.test(index), '页面里不许有发送键')
+  assert.match(PUB_APP, /postMessage\(\{\s*type:\s*'pbc:agent-open'/, '嵌入式下「对话」应 postMessage pbc:agent-open')
+  assert.match(read('lib/client.js'), /type === 'pbc:agent-open'/, 'lib/client.js 必须接住 pbc:agent-open，否则顶栏「对话」是死按钮')
+  assert.match(read('lib/client.js'), /type !== EVT_DRAFT && type !== 'pbc:agent-open'/, '外壳的 message 守卫要同时允许草稿与打开会话两种事件')
+})

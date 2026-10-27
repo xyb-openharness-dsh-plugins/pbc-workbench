@@ -253,7 +253,17 @@
   function render() {
     renderShell()
     const fn = VIEWS[state.view + '/' + state.sub] || (() => '<div class="card">这一页还没实现</div>')
-    $('#view').innerHTML = fn()
+    try {
+      $('#view').innerHTML = fn()
+    } catch (error) {
+      /* 单个视图算错不能让整块业务区变空白：空白看起来就是"没有界面"，
+         而且看不出是哪条数据缺了。把原因写出来，数据本身一条都没动。 */
+      $('#view').innerHTML = `<div class="card">
+        <div class="card-head"><span class="card-title">这一页没能画出来</span></div>
+        <p class="muted">${esc(error && error.message ? error.message : '未知错误')}</p>
+        <p class="muted">资料还在你自己的资料库里，没有丢。可以先切到别的页，或重新打开工作台。</p>
+      </div>`
+    }
     bindViewEvents()
   }
 
@@ -274,6 +284,30 @@
     const today = new Date(localToday() + 'T00:00:00')
     return Math.max(0, Math.round((today - d) / 86400000))
   }
+  /* 接下来的参考节点：从「开始用药日」（没记就用确诊日）按 6 个月网格往后推，
+     只取落在今天之后的。以前首页把 2026-11-08 写死 —— 写死的日期过一个月就是错的，
+     而它看起来像真的；「接下来」那个页签也就只能列出已经过去的节点。
+     count 默认 1（状态卡只要最近那个）。 */
+  function upcomingCadenceNodes(p, count) {
+    const anchor = p.startedAt || p.diagnosedAt || ''
+    const start = new Date(anchor + 'T00:00:00')
+    if (!anchor || Number.isNaN(start.getTime())) return []
+    const today = new Date(localToday() + 'T00:00:00')
+    const out = []
+    for (let months = 6; months <= 240 && out.length < (count || 1); months += 6) {
+      const d = new Date(start.getTime())
+      const day = d.getDate()
+      d.setMonth(d.getMonth() + months)
+      if (d.getDate() < day) d.setDate(0) // 月末夹取：1/31 + 1 月 = 2 月末
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const days = Math.round((d - today) / 86400000)
+      if (days > 0) out.push({ date: iso, days, months })
+    }
+    return out
+  }
+  function nextCadenceNode(p) {
+    return upcomingCadenceNodes(p, 1)[0] || null
+  }
   function kv(k, v, n) {
     return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${v}</span>${n ? `<span class="n">${esc(n)}</span>` : ''}</div>`
   }
@@ -287,26 +321,34 @@
   /* ------------------------------ 看板 ------------------------------ */
   function vDashboardOverview() {
     const p = profile()
-    const lastLabs = p.labs[p.labs.length - 1]
+    /* 真实库里"有档案但还没化验/没记感受"是常态。以前这里直接取最后一条再 .find().value，
+       缺一条数据就抛错，整块业务区变空白——看起来就是"这个工作台没有界面"。 */
+    const lastLabs = p.labs.length ? p.labs[p.labs.length - 1] : null
+    const alp = lastLabs ? lastLabs.items.find((i) => i.code === 'ALP') : null
     const lastSym = allSymptoms()[0]
     const answers = p.questions.filter((q) => !q.done).length
     const anchor = p.startedAt || ''
     const dayN = anchor ? daysSince(anchor) : null
+    const next = nextCadenceNode(p)
     const phase = p.label.includes('·') ? p.label.split('·').pop().trim() : p.label
     return `
       <div class="card">
-        <div class="card-head"><span class="muted">${dayN == null ? '状态卡 · 待初始化' : `D+${dayN} 状态卡 · 距参考复查节点`}</span></div>
-        <div style="font-size:28px;font-weight:700;color:var(--brand);line-height:1.2">${dayN == null ? '待初始化' : `第 ${dayN} 天`}</div>
-        <p class="muted" style="margin-top:4px">${dayN == null ? '还没有起点日期：先在「我的病底」补诊断日与开始用药日（三步向导）' : `阶段：${esc(phase)} · 长期病程 · 下次：2026-11-08（参考复查节点）`}</p>
+        <div class="card-head"><span class="muted">${dayN == null
+          ? '状态卡 · 还没有起点日期'
+          : `D+${dayN} 状态卡 · ${next ? `距参考节点 ${next.days} 天` : '暂无参考节点'}`}</span></div>
+        <div style="font-size:28px;font-weight:700;color:var(--brand);line-height:1.2">${dayN == null ? '还没有起点日期' : `第 ${dayN} 天`}</div>
+        <p class="muted" style="margin-top:4px">${dayN == null
+          ? '这个数字由你记的「开始用药日」算出来。去「我的病底」补上日期后，这里会显示第 N 天和下一个参考节点（工作台不推断病程）。'
+          : `锚点 ${esc(anchor)}（开始用药日 = Day 0）· 阶段：${esc(phase)} · ${next ? `下次参考节点 ${esc(next.date)}` : '还没有可推算的下一个节点'}`}</p>
         <div class="actions-row" style="margin-top:8px">
-          <button class="btn" type="button" data-goto="${dayN == null ? 'basics/diagnosis' : 'followup/cadence'}">${dayN == null ? '去补齐档案 →' : '看复查节奏（参考节点）→'}</button>
+          <button class="btn" type="button" data-goto="${dayN == null ? 'basics/diagnosis' : 'followup/cadence'}">${dayN == null ? '去补开始用药日 →' : '看复查节奏（参考节点）→'}</button>
           <button class="btn ghost" type="button" data-primer-open aria-label="疾病概要：定义、医学资料与指南情况、治疗全景、发展趋势">疾病概要：原发性胆汁性胆管炎是什么？</button>
         </div>
       </div>
       <div class="row-3">
         <div class="card">
           <div class="card-head"><span class="card-title">今天怎么样</span>${aiButton('我今天不太舒服，想记一笔', '看板·今天怎么样')}</div>
-          <p class="muted">记一次痒或累，20 秒完成。也可以直接对右侧说。</p>
+          <p class="muted">记一次痒或累，20 秒完成。也可以点右上角「对话」交给原生会话。</p>
           <div class="actions-row" style="margin-top:8px">
             <button class="btn" type="button" data-goto="symptoms/itch">记一笔痒</button>
             <button class="btn ghost" type="button" data-goto="symptoms/fatigue">记一笔累</button>
@@ -314,15 +356,15 @@
         </div>
         <div class="card">
           <div class="card-head"><span class="card-title">接下来</span></div>
-          ${kv('参考复查节点', '2026-11-08（约 1 个月后）', '±30 天是工作台显示带宽，不是指南内容')}
-          <p class="muted" style="margin-top:6px">起点 ${esc(p.startedAt)} · 按 6 个月间隔推算，未按分期调整</p>
+          ${kv('参考复查节点', next ? `${esc(next.date)}（${next.days} 天后）` : '还没有起点日期', '±30 天是工作台显示带宽，不是指南内容')}
+          <p class="muted" style="margin-top:6px">起点 ${esc(anchor || '未记录')} · 按 6 个月间隔往后推，未按分期调整</p>
           <div class="actions-row" style="margin-top:8px">
             <button class="btn ghost small" type="button" data-goto="followup/cadence">看复查节奏怎么算的</button>
           </div>
         </div>
         <div class="card">
           <div class="card-head"><span class="card-title">最近变化</span></div>
-          ${kv('最近一次 ALP', `${lastLabs.items.find((i) => i.code === 'ALP').value} U/L`, `${lastLabs.date} · ${lastLabs.items[0].lab}`)}
+          ${kv('最近一次 ALP', alp ? `${alp.value} U/L` : '还没有化验记录', lastLabs ? `${lastLabs.date}${lastLabs.items[0] ? ` · ${lastLabs.items[0].lab}` : ''}` : '')}
           ${kv('最近一次记录的感受', lastSym ? `${lastSym.itch == null ? '痒 未记' : `痒 ${lastSym.itch}/10`} · ${lastSym.fatigue == null ? '累 未记' : `累 ${lastSym.fatigue}/3`}` : '无', lastSym ? lastSym.date : '')}
           <p class="muted" style="margin-top:6px">只并列事实，不判断好坏。</p>
           <div class="actions-row" style="margin-top:8px">
@@ -345,13 +387,18 @@
 
   function vDashboardNext() {
     const p = profile()
-    const nodes = cadenceNodes(p)
+    /* 这里列的是「接下来」，所以只列今天之后的节点；原先复用 cadenceNodes（起点 +6/+12 个月），
+       对老档案两个日期都已经过去，页签名叫"接下来"却在讲过去。 */
+    const nodes = upcomingCadenceNodes(p, 3)
+    const lastLabs = p.labs.length ? p.labs[p.labs.length - 1] : null
     return `
       <div class="card">
         <div class="card-head"><span class="card-title">接下来要发生的事</span></div>
-        <ul class="list">
-          ${nodes.map((n) => `<li><span class="time">${esc(n.date)}</span><span>${esc(n.label)}<br><span class="muted">${esc(n.note)}</span></span></li>`).join('')}
-        </ul>
+        ${nodes.length
+          ? `<ul class="list">
+          ${nodes.map((n) => `<li><span class="time">${esc(n.date)}</span><span>${esc(n.months)} 个月参考节点 · ${esc(n.days)} 天后<br><span class="muted">起点 ${esc(p.startedAt || p.diagnosedAt)}，±30 天为显示带宽</span></span></li>`).join('')}
+        </ul>`
+          : '<p class="muted">还没有开始用药日，推不出下一个节点。</p>'}
         <p class="muted" style="margin-top:8px">这些是**参考节点**，不是提醒；工作台不会发通知。</p>
       </div>
       <div class="row">
@@ -359,7 +406,7 @@
           <ul class="list">${p.questions.filter((q) => !q.done).slice(0, 3).map((q) => `<li><span class="timeline-dot"></span><span>${esc(q.text)}</span></li>`).join('') || '<li class="muted">无</li>'}</ul>
         </div>
         <div class="card"><div class="card-head"><span class="card-title">上次复查带走了什么</span></div>
-          <p class="muted">导出快照 1 份（2026-10-08）· 含 6 次化验与 7 条感受记录</p>
+          <p class="muted">最近一次化验 ${esc(lastLabs ? lastLabs.date : '还没有记录')} · 档案里共有 ${p.labs.length} 次化验与 ${allSymptoms().length} 条感受记录；导出在「报告与资料 → 导出」。</p>
         </div>
       </div>`
   }
@@ -367,6 +414,13 @@
   function vDashboardChanges() {
     const p = profile()
     const series = seriesFor(p, 'ALP')
+    if (!series.length) {
+      return `<div class="card">
+        <div class="card-head"><span class="card-title">这 6 个月</span><span class="muted">只列变化，不给结论</span></div>
+        <p class="muted">档案里还没有 ALP 数值，所以画不了趋势。导入一张化验单后，这里会按日期连成线。</p>
+        <div class="actions-row" style="margin-top:8px"><button class="btn ghost" type="button" data-goto="records/import">导入化验单</button></div>
+      </div>`
+    }
     const first = series[0], last = series[series.length - 1]
     const ratio = (x) => (x.refHigh ? x.value / x.refHigh : null)
     return `

@@ -22,8 +22,10 @@ const ROOT = join(HERE, '..')
 const SRC = join(ROOT, 'prototypes', 'v0.2')
 const OUT = join(ROOT, 'public')
 
-/* 纯复制、零改动的文件。 */
-const VERBATIM = ['style.css', 'demo-data.js', 'primer.css', 'primer.js', 'primer-data.js']
+/* 纯复制、零改动的文件。bridge.js 是页面与宿主外框的唯一通路（pbc:agent-draft /
+   pbc:agent-open），必须随构建生成：只手工放进 public/ 的话，换机重建或打包一旦漏了它，
+   装机版的「AI 帮我填」就永远送不到会话，而页面看起来完全正常。 */
+const VERBATIM = ['style.css', 'demo-data.js', 'bridge.js', 'primer.css', 'primer.js', 'primer-data.js']
 
 /**
  * `index.html` 的定点替换。
