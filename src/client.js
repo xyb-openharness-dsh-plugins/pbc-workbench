@@ -125,9 +125,8 @@
       }
       var drawerStyle = { position: 'absolute', top: 0, right: 0, bottom: 0, zIndex: 3, boxShadow: '-8px 0 24px rgba(63,74,43,0.14)' }
       var splitterStyle = {
-        flex: '0 0 auto', width: 10, cursor: 'col-resize', background: '#EDEBE0',
-        borderLeft: '1px solid #E1DFD2', borderRight: '1px solid #E1DFD2', touchAction: 'none',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+        position: 'absolute', top: 0, bottom: 0, width: 1, marginRight: -0.5,
+        zIndex: 2, background: '#E4DFEA', cursor: 'col-resize', touchAction: 'none',
         transition: 'background .15s ease, box-shadow .15s ease',
       }
 
@@ -139,23 +138,32 @@
         const mix = (c) => Math.round(c + (255 - c) * ratio)
         return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
       }
+      var splitterRgba = function (hex, alpha) {
+        var n = parseInt(String(hex).replace('#', ''), 16)
+        return 'rgba(' + ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ', ' + alpha + ')'
+      }
       var splitterHoverStyle = {
         ...splitterStyle,
-        background: splitterMix(SPLITTER_BRAND, 0.55),
-        borderLeft: `1px solid ${splitterMix(SPLITTER_BRAND, 0.25)}`,
-        borderRight: `1px solid ${splitterMix(SPLITTER_BRAND, 0.25)}`,
-        boxShadow: `0 0 0 1px ${splitterMix(SPLITTER_BRAND, 0.6)}`,
+        background: SPLITTER_BRAND,
+        boxShadow: `0 0 6px ${splitterRgba(SPLITTER_BRAND, 0.55)}`,
       }
       var splitterDragStyle = {
         ...splitterHoverStyle,
-        background: splitterMix(SPLITTER_BRAND, 0.42),
-        boxShadow: `0 0 0 2px ${splitterMix(SPLITTER_BRAND, 0.7)}`,
+        boxShadow: `0 0 10px ${splitterRgba(SPLITTER_BRAND, 0.8)}`,
+      }
+      var splitterHitStyle = {
+        position: 'absolute', top: 0, bottom: 0, left: -5, width: 11,
+        background: 'transparent', cursor: 'col-resize',
       }
       var splitterGripStyle = {
-        fontSize: 13, lineHeight: 1, letterSpacing: '0px', fontWeight: 700,
-        color: SPLITTER_BRAND, opacity: 0.9, pointerEvents: 'none', userSelect: 'none',
+        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: 14, height: 22, borderRadius: 4, background: SPLITTER_BRAND,
+        color: '#fff', fontSize: 11, lineHeight: '22px', letterSpacing: '-1px', textAlign: 'center',
+        opacity: 0.95, pointerEvents: 'none', userSelect: 'none',
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.18)',
       }
-      var splitterFocusStyle = Object.assign({}, splitterStyle, { background: '#C9CFB0' })
+      var splitterFocusStyle = Object.assign({}, splitterStyle,
+        { background: SPLITTER_BRAND, boxShadow: '0 0 0 1px ' + splitterRgba(SPLITTER_BRAND, 0.5) })
       var dragShieldStyle = {
         position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 4,
         cursor: 'col-resize', background: 'transparent', touchAction: 'none',
@@ -535,12 +543,16 @@
               'aria-valuemax': Math.round(AGENT_MAX),
               'aria-valuenow': percent,
               tabIndex: 0,
-              style: dragging ? splitterDragStyle : hovering ? splitterHoverStyle : splitterStyle,
+              style: {
+                ...(dragging ? splitterDragStyle : hovering ? splitterHoverStyle : splitterStyle),
+                right: percent + '%',
+              },
               onPointerDown: onSplitterPointerDown,
               onPointerEnter: function () { setHovering(true) },
               onPointerLeave: function () { setHovering(false) },
               onKeyDown: onSplitterKeyDown,
-            }, (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
+            }, h('span', { style: splitterHitStyle, 'aria-hidden': 'true' }),
+              (hovering || dragging) ? h('span', { style: splitterGripStyle, 'aria-hidden': 'true' }, '⠿') : null),
             dragging && !narrow && h('div', { 'aria-hidden': 'true', style: dragShieldStyle }),
             h('aside', {
               style: Object.assign({}, paneStyle,
