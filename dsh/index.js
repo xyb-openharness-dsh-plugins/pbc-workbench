@@ -35,14 +35,25 @@ async function openDataSource(root) {
   return root ? Workbench.open(root) : Workbench.open(null)
 }
 
-export function apply(ctx) {
+/**
+ * config 是**第二个参数**，不是 `ctx.config`。
+ *
+ * Cordis 的服务访问守卫会把 `ctx.config` 当成未声明 inject 的服务访问，直接抛
+ *   `cannot get property "config" without inject`
+ * ——本仓 0.2.11 装机后每次启动都在 apply 阶段炸掉，宿主只留一行
+ *   `pbc-workbench-main (@ductpal-dsh/pbc-workbench): Error: cannot get property "config" without inject`
+ * 服务端插件因此从未激活：`/api/pbc-workbench/ui/` 与 `/health` 都不存在 → 面板业务区空白。
+ * 本地桩件把 `ctx.config` 补齐了，所以 `npm run check` 全绿、装进 Desktop 才炸
+ * （同族先例：pf-ild 2026-10-25 真机踩过同一条）。
+ */
+export function apply(ctx, config = {}) {
   if (!ctx.webServer?.register) throw new Error('Desktop webServer.register is unavailable')
 
   /* 异步打开：宿主不等我们，所以先把 handler 挂上，打不开就在 /health 里说原因，
      其余接口统一 503 —— 不假装返回空数据，否则用户看到空档案会以为"数据丢了"。 */
   let source = null
   let failure = null
-  const ready = openDataSource(ctx.config?.root)
+  const ready = openDataSource(config?.root)
     .then((wb) => { source = wb })
     .catch((error) => {
       failure = `资料库打不开：${error?.message ?? error}`
@@ -73,7 +84,7 @@ export function apply(ctx) {
     serveUi: (req, res, urlPath) => void servePublic(req, res, urlPath),
     get failure() { return failure },
     /* 只回布尔，不回路径：路径会出现在 HTTP 响应里，谁抓到响应就知道你把资料放哪了。 */
-    dataDirConfigured: Boolean(ctx.config?.root),
+    dataDirConfigured: Boolean(config?.root),
   })
 
   /* 资料库是异步就绪的。每个请求现取，避免"启动时的 null 被闭包钉死"；

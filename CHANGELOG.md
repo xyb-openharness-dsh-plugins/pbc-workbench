@@ -1,3 +1,19 @@
+## 0.2.12 — 2026-10-28（装机空白修复：apply 读了 ctx.config）
+
+- **根因**：`dsh/index.js` 用 `ctx.config?.root` 取资料目录。Cordis 的服务访问守卫把 `ctx.config` 当成
+  未声明 inject 的服务访问，直接抛 `cannot get property "config" without inject`；
+  `apply()` 阶段就失败 → 服务端插件从未激活 → `/api/pbc-workbench/ui/` 与 `/health` 都不存在 →
+  **装机后工作台业务区空白**。宿主每次启动都会记一行
+  `pbc-workbench-main (@ductpal-dsh/pbc-workbench): Error: cannot get property "config" without inject`。
+  本地桩件把 `ctx.config` 补齐了，所以 check 全绿、装进 Desktop 才炸（同族先例：pf-ild 2026-10-25）。
+- **修法**：`apply(ctx, config = {})`，开库与 `dataDirConfigured` 都改读 `config?.root`。
+  `cordis.patch.yml` 的 `config.root` 注入与 `Config.root` 声明保持不变（两处仍同源）。
+- **回归**：新增 `test/host-config.test.mjs`（3 条：apply 签名、执行代码里不再出现 `ctx.config`、patch/Config 同源）。
+- 实测（带 cordis 守卫的宿主桩件）：修前 `APPLY THREW: cannot get property "config" without inject`
+  （栈指向 `dsh/index.js:45:36`，与 harness.log 一致）；修后 `apply OK`，
+  `/api/pbc-workbench/ui/` 200、`app.js` 200、`style.css` 200、`health` 200。
+- `npm run check` 退出 0，`npm test` 118/118 通过。
+
 ## 0.2.10 — 2026-10-27
 
 - 分隔线交互统一：AI 面板分隔线加宽抓取区，悬停显示本工作台同色系增亮色与拖动把手（⠿）；拖动改用指针捕获，越过业务 iframe 不再丢事件。

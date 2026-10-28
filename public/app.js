@@ -51,7 +51,7 @@
     SOURCE_STATES = Array.isArray(data.sourceStates) ? data.sourceStates : []
     return true
   }
-  const VERSION = 'v0.2.11'
+  const VERSION = 'v0.2.12'
   const EVT_DRAFT = 'pbc:agent-draft'
 
   const NAV = [
